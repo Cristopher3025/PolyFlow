@@ -1,0 +1,154 @@
+# PolyFlow .gitignore
+
+# ========================================================================
+# Programming Language Build Artifacts
+# ========================================================================
+
+# FORTRAN
+*.mod
+*.o
+fortran/bin/
+fortran/*.exe
+fortran/*.out
+
+# COBOL
+cobol/bin/
+cobol/*.exe
+cobol/*.o
+
+# MIPS
+mips/bin/
+mips/*.o
+mips/*.exe
+
+# BASIC-256
+*.bac
+basic256/bin/
+basic256/*.exe
+
+# ========================================================================
+# Compiled and Temporary Files
+# ========================================================================
+
+*.exe
+*.dll
+*.so
+*.dylib
+*.class
+*.jar
+*.pyc
+*.pyo
+__pycache__/
+*.egg-info/
+dist/
+build/
+
+# ========================================================================
+# IDE and Editor Files
+# ========================================================================
+
+# VS Code
+.vscode/
+*.code-workspace
+.history/
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+.swp
+.swo
+*~
+
+# Emacs
+*~
+.#*
+*#
+*.el
+
+# ========================================================================
+# Operating System Files
+# ========================================================================
+
+# Windows
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+.directory
+.Trash-*
+
+# ========================================================================
+# Pipeline Output Files (Optional - Uncomment to ignore)
+# ========================================================================
+
+# Uncomment if you want to keep generated files out of git
+# (recommended for large output files)
+
+# data/*.csv
+# data/*.txt
+# pipeline.log
+
+# ========================================================================
+# Test and Temporary Files
+# ========================================================================
+
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+test-output/
+temp/
+
+# ========================================================================
+# Documentation Build Artifacts (if applicable)
+# ========================================================================
+
+docs/_build/
+docs/.doctrees/
+site/
+
+# ========================================================================
+# Environment Files
+# ========================================================================
+
+.env
+.env.local
+.env.*.local
+
+# ========================================================================
+# Dependency Directories (if applicable)
+# ========================================================================
+
+node_modules/
+venv/
+.venv/
+env/
+ENV/
+
+# ========================================================================
+# DO NOT IGNORE
+# ========================================================================
+# Source code files are NEVER ignored:
+# - *.kbs (BASIC-256)
+# - *.f90 (FORTRAN)
+# - *.cob (COBOL)
+# - *.asm (MIPS)
+# - *.bat, *.sh (Scripts)
+# - *.md (Documentation)
+# - *.csv (Data contracts and test data)
