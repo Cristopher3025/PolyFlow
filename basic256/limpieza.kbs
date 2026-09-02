@@ -1,1 +1,401 @@
-# TODO: Implementar etapa 1 en BASIC-256
+print "=========================================="
+print "       POLYFLOW - LIMPIEZA DE DATOS"
+print "=========================================="
+print ""
+
+# --------------------------------------------------
+# Validation limits
+# --------------------------------------------------
+
+TEMPERATURE_MIN = -50
+TEMPERATURE_MAX = 60
+
+PRECIPITATION_MIN = 0
+PRECIPITATION_MAX = 300
+
+WIND_MIN = 0
+WIND_MAX = 150
+
+BATTERY_MIN = 0
+BATTERY_MAX = 100
+
+
+# --------------------------------------------------
+# Counters
+# --------------------------------------------------
+
+recordsProcessed = 0
+recordsValid = 0
+recordsInvalid = 0
+duplicateIDs = 0
+
+
+# --------------------------------------------------
+# File paths
+# --------------------------------------------------
+
+inputFile$ = "../data/datos_crudos.csv"
+outputFile$ = "../data/datos_normalizados.csv"
+
+
+# --------------------------------------------------
+# Verify input file
+# --------------------------------------------------
+
+if not exists(inputFile$) then
+
+    print "ERROR: No se encontro el archivo de entrada."
+    print inputFile$
+    end
+
+end if
+
+
+# --------------------------------------------------
+# Remove previous generated output
+# --------------------------------------------------
+
+if exists(outputFile$) then
+    kill outputFile$
+end if
+
+
+# --------------------------------------------------
+# Open files
+# --------------------------------------------------
+
+open 1, inputFile$
+open 2, outputFile$
+
+
+# --------------------------------------------------
+# Read input header
+# --------------------------------------------------
+
+header$ = trim(readline(1))
+
+if header$ <> "ID,STATION,TEMPERATURE,PRECIPITATION,WIND,BATTERY" then
+
+    close 1
+    close 2
+
+    print "ERROR: Encabezado CSV invalido."
+    print header$
+    end
+
+end if
+
+
+# --------------------------------------------------
+# Write output header
+# --------------------------------------------------
+
+writeline 2, "ID,STATION,TEMPERATURE,PRECIPITATION,WIND,BATTERY"
+
+
+# --------------------------------------------------
+# Maps
+#
+# idIndex:
+# Detects duplicate IDs.
+#
+# sortedRecords:
+# Stores valid records using STATION + ID as key.
+# BASIC-256 keeps maps alphabetically ordered.
+# --------------------------------------------------
+
+map idIndex
+map sortedRecords
+
+
+# --------------------------------------------------
+# Process input line by line
+# --------------------------------------------------
+
+while not eof(1)
+
+    # Trim removes spaces and carriage returns
+    # from the beginning/end of the line.
+    line$ = trim(readline(1))
+
+    # Ignore empty lines.
+    if line$ <> "" then
+
+        recordsProcessed = recordsProcessed + 1
+
+        # Split CSV line into fields.
+        fields$ = explode(line$, ",")
+
+        isValid = true
+
+
+        # --------------------------------------------------
+        # Verify field count
+        #
+        # [ ? ] is the documented BASIC-256 array-length
+        # operator. It returns the number of elements.
+        # --------------------------------------------------
+
+        if fields$[?] <> 6 then
+            isValid = false
+        end if
+
+
+        # --------------------------------------------------
+        # Trim individual fields
+        # --------------------------------------------------
+
+        if isValid then
+
+            fields$[0] = trim(fields$[0])
+            fields$[1] = trim(fields$[1])
+            fields$[2] = trim(fields$[2])
+            fields$[3] = trim(fields$[3])
+            fields$[4] = trim(fields$[4])
+            fields$[5] = trim(fields$[5])
+
+        end if
+
+
+        # --------------------------------------------------
+        # Verify required fields
+        # --------------------------------------------------
+
+        if isValid then
+
+            if fields$[0] = "" then
+                isValid = false
+            end if
+
+            if fields$[1] = "" then
+                isValid = false
+            end if
+
+            if fields$[2] = "" then
+                isValid = false
+            end if
+
+            if fields$[3] = "" then
+                isValid = false
+            end if
+
+            if fields$[4] = "" then
+                isValid = false
+            end if
+
+            if fields$[5] = "" then
+                isValid = false
+            end if
+
+        end if
+
+
+        # --------------------------------------------------
+        # Verify ID format
+        #
+        # ID must contain only letters and numbers.
+        # --------------------------------------------------
+
+        if isValid then
+
+            if not isAlphanumeric(fields$[0]) then
+                isValid = false
+            end if
+
+        end if
+
+
+        # --------------------------------------------------
+        # Verify numeric fields
+        # --------------------------------------------------
+
+        if isValid then
+
+            if not isNumber(fields$[2]) then
+                isValid = false
+            end if
+
+            if not isNumber(fields$[3]) then
+                isValid = false
+            end if
+
+            if not isNumber(fields$[4]) then
+                isValid = false
+            end if
+
+            if not isNumber(fields$[5]) then
+                isValid = false
+            end if
+
+        end if
+
+
+        # --------------------------------------------------
+        # Convert numeric fields
+        # --------------------------------------------------
+
+        if isValid then
+
+            temperature = fields$[2] * 1
+            precipitation = fields$[3] * 1
+            wind = fields$[4] * 1
+            battery = fields$[5] * 1
+
+        end if
+
+
+        # --------------------------------------------------
+        # Validate temperature
+        # --------------------------------------------------
+
+        if isValid then
+
+            if temperature < TEMPERATURE_MIN or temperature > TEMPERATURE_MAX then
+                isValid = false
+            end if
+
+        end if
+
+
+        # --------------------------------------------------
+        # Validate precipitation
+        # --------------------------------------------------
+
+        if isValid then
+
+            if precipitation < PRECIPITATION_MIN or precipitation > PRECIPITATION_MAX then
+                isValid = false
+            end if
+
+        end if
+
+
+        # --------------------------------------------------
+        # Validate wind
+        # --------------------------------------------------
+
+        if isValid then
+
+            if wind < WIND_MIN or wind > WIND_MAX then
+                isValid = false
+            end if
+
+        end if
+
+
+        # --------------------------------------------------
+        # Validate battery
+        # --------------------------------------------------
+
+        if isValid then
+
+            if battery < BATTERY_MIN or battery > BATTERY_MAX then
+                isValid = false
+            end if
+
+        end if
+
+
+        # --------------------------------------------------
+        # Verify ID uniqueness
+        #
+        # Map length is used to determine whether the ID
+        # already existed.
+        # --------------------------------------------------
+
+        if isValid then
+
+            idCountBefore = length(idIndex)
+
+            idIndex[fields$[0]] = 1
+
+            if length(idIndex) = idCountBefore then
+
+                isValid = false
+                duplicateIDs = duplicateIDs + 1
+
+            end if
+
+        end if
+
+
+        # --------------------------------------------------
+        # Store valid record for sorted output
+        # --------------------------------------------------
+
+        if isValid then
+
+            # Reconstruct the CSV line using trimmed fields.
+            normalizedLine$ = fields$[0] + "," + fields$[1] + "," + fields$[2] + "," + fields$[3] + "," + fields$[4] + "," + fields$[5]
+
+            # STATION first, ID second.
+            # Upper() makes station sorting case-insensitive.
+            sortKey$ = upper(fields$[1]) + "|" + fields$[0]
+
+            sortedRecords[sortKey$] = normalizedLine$
+
+            recordsValid = recordsValid + 1
+
+        else
+
+            recordsInvalid = recordsInvalid + 1
+
+        end if
+
+    end if
+
+end while
+
+
+# --------------------------------------------------
+# Write valid records in sorted order
+# --------------------------------------------------
+
+for each sortKey -> normalizedLine$ in sortedRecords
+
+    writeline 2, normalizedLine$
+
+next sortKey
+
+
+# --------------------------------------------------
+# Close files
+# --------------------------------------------------
+
+close 1
+close 2
+
+
+# --------------------------------------------------
+# Display results
+# --------------------------------------------------
+
+print "Registros procesados:  " + recordsProcessed
+print "Registros validos:     " + recordsValid
+print "Registros invalidos:   " + recordsInvalid
+print "IDs duplicados:        " + duplicateIDs
+print ""
+print "Archivo generado:"
+print outputFile$
+
+
+# --------------------------------------------------
+# Function: verify numeric value
+# --------------------------------------------------
+
+function isNumber(value$)
+
+    return instrx(value$, "^-?\d+\.?\d*$") <> 0
+
+end function
+
+
+# --------------------------------------------------
+# Function: verify alphanumeric ID
+# --------------------------------------------------
+
+function isAlphanumeric(value$)
+
+    return instrx(value$, "^[A-Za-z0-9]+$") <> 0
+
+end function
