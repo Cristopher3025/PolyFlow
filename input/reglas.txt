@@ -1,0 +1,15 @@
+# PolyFlow - Reglas (mini-lenguaje)
+# ======================================
+# Gramática oficial del proyecto:
+#   <regla>      ::= <identificador> <operador> <numero>
+#   <operador>   ::= ">" | "<" | ">=" | "<="
+#   <identificador> ::= "TEMP_ALTA" | "LLUVIA_INTENSA"
+#                     | "VIENTO_FUERTE" | "BATERIA_BAJA"
+#
+# Líneas que inician con # son comentarios.
+# ======================================
+
+TEMP_ALTA > 35
+LLUVIA_INTENSA > 50
+VIENTO_FUERTE > 40
+BATERIA_BAJA < 20

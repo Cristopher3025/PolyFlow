@@ -40,6 +40,7 @@ PROGRAM POLYFLOW_METRICS
     REAL(KIND=8) :: min_temperature
     REAL(KIND=8) :: total_precipitation
     REAL(KIND=8) :: avg_wind
+    REAL(KIND=8) :: max_wind
     REAL(KIND=8) :: avg_battery
   END TYPE METRIC_RESULT
 
@@ -230,7 +231,7 @@ CONTAINS
 
     INTEGER :: i, n
     REAL(KIND=8) :: sum_temp, sum_wind, sum_battery, sum_precip
-    REAL(KIND=8) :: max_temp, min_temp
+    REAL(KIND=8) :: max_temp, min_temp, max_wind
 
     n = 0
     sum_temp = 0.0D0
@@ -239,6 +240,7 @@ CONTAINS
     sum_precip = 0.0D0
     max_temp = -HUGE(1.0D0)
     min_temp = HUGE(1.0D0)
+    max_wind = -HUGE(1.0D0)
 
     DO i = 1, in_count
       IF (TRIM(in_records(i)%station) == TRIM(station_name)) THEN
@@ -249,6 +251,7 @@ CONTAINS
         sum_precip = sum_precip + in_records(i)%precipitation
         IF (in_records(i)%temperature > max_temp) max_temp = in_records(i)%temperature
         IF (in_records(i)%temperature < min_temp) min_temp = in_records(i)%temperature
+        IF (in_records(i)%wind > max_wind) max_wind = in_records(i)%wind
       END IF
     END DO
 
@@ -265,6 +268,7 @@ CONTAINS
     out_metrics%max_temperature = max_temp
     out_metrics%min_temperature = min_temp
     out_metrics%total_precipitation = sum_precip
+    out_metrics%max_wind = max_wind
   END SUBROUTINE calculate_statistics
 
   ! ======================================================================
@@ -288,16 +292,17 @@ CONTAINS
       STOP 1
     END IF
 
-    WRITE(unit_out, '(A)') "STATION,AVG_TEMPERATURE,MAX_TEMPERATURE,MIN_TEMPERATURE,TOTAL_PRECIPITATION,AVG_WIND,AVG_BATTERY"
+    WRITE(unit_out, '(A)') "ESTACION,TEMP_PROM,TEMP_MAX,TEMP_MIN,LLUVIA_TOTAL,VIENTO_PROM,VIENTO_MAX,BATERIA_PROM"
 
     DO i = 1, in_count
-      WRITE(unit_out, '(A,",",F0.2,",",F0.2,",",F0.2,",",F0.1,",",F0.2,",",F0.1)') &
+      WRITE(unit_out, '(A,",",F0.2,",",F0.2,",",F0.2,",",F0.1,",",F0.2,",",F0.2,",",F0.1)') &
             TRIM(in_metrics(i)%station), &
             in_metrics(i)%avg_temperature, &
             in_metrics(i)%max_temperature, &
             in_metrics(i)%min_temperature, &
             in_metrics(i)%total_precipitation, &
             in_metrics(i)%avg_wind, &
+            in_metrics(i)%max_wind, &
             in_metrics(i)%avg_battery
     END DO
 

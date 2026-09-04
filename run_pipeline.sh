@@ -41,7 +41,7 @@ require_file "basic256/limpieza.kbs"
 require_file "fortran/procesamiento.f90"
 require_file "cobol/rules_engine.cob"
 require_file "mips/checksum.asm"
-require_file "input/rules.txt"
+require_file "input/reglas.txt"
 
 rm -f \
     "$DATA_DIR/datos_normalizados.csv" \
@@ -60,18 +60,28 @@ printf '\n'
 # STAGE 1 - BASIC-256
 # ============================================================================
 
-echo "[1/4] BASIC-256 - Data Cleaning & Validation"
+printf '%s' "[BASIC-256] Procesando datos... "
 
 require_command "$BASIC256_CMD"
 
+# BASIC-256 opens its IDE and does NOT exit after -r:
+# launch detached, wait for the output file, then close the IDE.
 (
     cd basic256 &&
-    "$BASIC256_CMD" -s limpieza.kbs
-) || fail "BASIC-256 execution failed"
+    "$BASIC256_CMD" -r limpieza.kbs &
+)
+
+BASIC_TRIES=0
+while [ ! -f "$DATA_DIR/datos_normalizados.csv" ] && [ "$BASIC_TRIES" -lt 30 ]; do
+    sleep 1
+    BASIC_TRIES=$((BASIC_TRIES + 1))
+done
+
+pkill -f basic256 2>/dev/null || true
 
 require_file "$DATA_DIR/datos_normalizados.csv"
 
-echo "[OK] BASIC-256 completed"
+echo "OK"
 echo
 
 
@@ -79,7 +89,7 @@ echo
 # STAGE 2 - FORTRAN
 # ============================================================================
 
-echo "[2/4] FORTRAN - Metrics Calculation"
+printf '%s' "[FORTRAN] Calculando métricas... "
 
 require_command "$FORTRAN_COMPILER"
 
@@ -97,7 +107,7 @@ require_command "$FORTRAN_COMPILER"
 
 require_file "$DATA_DIR/metricas.csv"
 
-echo "[OK] FORTRAN completed"
+echo "OK"
 echo
 
 
@@ -105,7 +115,7 @@ echo
 # STAGE 3 - COBOL
 # ============================================================================
 
-echo "[3/4] COBOL - Rules Engine & Alert Generation"
+printf '%s' "[COBOL] Evaluando reglas... "
 
 require_command "$COBOL_COMPILER"
 
@@ -123,7 +133,7 @@ require_command "$COBOL_COMPILER"
 require_file "$DATA_DIR/alertas.csv"
 require_file "$DATA_DIR/secuencia.txt"
 
-echo "[OK] COBOL completed"
+echo "OK"
 echo
 
 
@@ -131,7 +141,7 @@ echo
 # STAGE 4 - MIPS
 # ============================================================================
 
-echo "[4/4] MIPS - Checksum Integrity Verification"
+printf '%s' "[MIPS] Calculando firma... "
 
 if [[ -n "$MARS_JAR" ]]; then
 
@@ -162,9 +172,9 @@ grep -Eq '^CHECKSUM=[0-9A-F]{8}$' \
     "$DATA_DIR/checksum.txt" \
     || fail "Invalid checksum.txt format"
 
-echo "[OK] MIPS completed"
+echo "OK"
 echo
 
 printf '%s\n' "========================================================================"
-printf '%s\n' "PIPELINE COMPLETED"
+printf '%s\n' "PIPELINE COMPLETADO"
 printf '%s\n' "========================================================================"

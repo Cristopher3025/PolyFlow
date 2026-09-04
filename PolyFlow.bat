@@ -18,13 +18,14 @@ IF NOT EXIST "%BIN_DIR%" MKDIR "%BIN_DIR%"
 IF NOT DEFINED BASIC256_EXE SET "BASIC256_EXE=basic256"
 IF NOT DEFINED FORTRAN_COMPILER SET "FORTRAN_COMPILER=gfortran"
 IF NOT DEFINED COBOL_COMPILER SET "COBOL_COMPILER=cobc"
+IF NOT DEFINED FORTRAN_FLAGS SET "FORTRAN_FLAGS=-std=f2008 -Wall -Wextra -O2 -static"
 
 IF NOT EXIST "%DATA_DIR%\datos_crudos.csv" GOTO :ERROR_INPUT
 IF NOT EXIST "basic256\limpieza.kbs" GOTO :ERROR_SOURCE
 IF NOT EXIST "fortran\procesamiento.f90" GOTO :ERROR_SOURCE
 IF NOT EXIST "cobol\rules_engine.cob" GOTO :ERROR_SOURCE
 IF NOT EXIST "mips\checksum.asm" GOTO :ERROR_SOURCE
-IF NOT EXIST "input\rules.txt" GOTO :ERROR_SOURCE
+IF NOT EXIST "input\reglas.txt" GOTO :ERROR_SOURCE
 
 DEL /Q "%DATA_DIR%\datos_normalizados.csv" "%DATA_DIR%\metricas.csv" "%DATA_DIR%\alertas.csv" "%DATA_DIR%\secuencia.txt" "%DATA_DIR%\checksum.txt" 2>NUL
 
@@ -34,57 +35,84 @@ ECHO PolyFlow Environmental Data Processing Pipeline
 ECHO ========================================================================
 ECHO.
 
-ECHO [1/4] BASIC-256 - Data Cleaning and Validation
+<NUL SET /P "_s=[BASIC-256] Procesando datos... "
 ECHO ==========================================
 
+REM BASIC-256 opens its IDE and does NOT exit after -r.
+REM Launch it detached, wait for the output file, then close the IDE.
+
 PUSHD "basic256"
-"%BASIC256_EXE%" -s limpieza.kbs
-SET "BASIC_EXIT=!ERRORLEVEL!"
+START "" /B "%BASIC256_EXE%" -r limpieza.kbs
 POPD
 
-IF NOT "!BASIC_EXIT!"=="0" GOTO :ERROR_STAGE
+SET /A BASIC_TRIES=0
+:BASIC_WAIT
+IF EXIST "%DATA_DIR%\datos_normalizados.csv" GOTO :BASIC_READY
+PING -n 2 127.0.0.1 >NUL
+SET /A BASIC_TRIES+=1
+IF %BASIC_TRIES% LSS 30 GOTO :BASIC_WAIT
+GOTO :ERROR_OUTPUT
+
+:BASIC_READY
+PING -n 3 127.0.0.1 >NUL
+TASKKILL /IM basic256.exe /F >NUL 2>&1
 
 IF NOT EXIST "%DATA_DIR%\datos_normalizados.csv" GOTO :ERROR_OUTPUT
 
-ECHO [OK] BASIC-256 completed.
+ECHO OK
 ECHO.
 
-ECHO [2/4] FORTRAN - Metrics Calculation
+<NUL SET /P "_s=[FORTRAN] Calculando metricas... "
 ECHO ==========================================
 
-"%FORTRAN_COMPILER%" -std=f2008 -Wall -Wextra -O2 ^
+REM gfortran needs ITS OWN binutils (as.exe, ld.exe) when
+REM linking; GnuCOBOL also ships binutils and, if its directory comes
+REM first in PATH, gfortran silently fails to link. The toolchain dir is
+REM prepended only for the compile and the PATH is restored right after,
+REM so the COBOL runtime DLLs keep resolving correctly later.
+
+SET "SAVED_PATH=%PATH%"
+IF EXIST "C:\msys64\ucrt64\bin\gfortran.exe" SET "PATH=C:\msys64\ucrt64\bin;%PATH%"
+
+"%FORTRAN_COMPILER%" !FORTRAN_FLAGS! ^
     -o "%BIN_DIR%\polyflow_metrics.exe" ^
     fortran\procesamiento.f90
 
-IF ERRORLEVEL 1 GOTO :ERROR_STAGE
+SET "FC_EXIT=!ERRORLEVEL!"
+SET "PATH=%SAVED_PATH%"
+
+IF NOT "!FC_EXIT!"=="0" GOTO :ERROR_STAGE
 
 "%BIN_DIR%\polyflow_metrics.exe"
 
-IF ERRORLEVEL 1 GOTO :ERROR_STAGE
+SET "RUN_EXIT=!ERRORLEVEL!"
+IF NOT "!RUN_EXIT!"=="0" GOTO :ERROR_STAGE
 IF NOT EXIST "%DATA_DIR%\metricas.csv" GOTO :ERROR_OUTPUT
 
-ECHO [OK] FORTRAN completed.
+ECHO OK
 ECHO.
 
-ECHO [3/4] COBOL - Rules Engine and Alert Generation
+<NUL SET /P "_s=[COBOL] Evaluando reglas... "
 ECHO ==========================================
 
 "%COBOL_COMPILER%" -x -free -Wall ^
     -o "%BIN_DIR%\polyflow_rules.exe" ^
     cobol\rules_engine.cob
 
-IF ERRORLEVEL 1 GOTO :ERROR_STAGE
+SET "CC_EXIT=!ERRORLEVEL!"
+IF NOT "!CC_EXIT!"=="0" GOTO :ERROR_STAGE
 
 "%BIN_DIR%\polyflow_rules.exe"
 
-IF ERRORLEVEL 1 GOTO :ERROR_STAGE
+SET "CR_EXIT=!ERRORLEVEL!"
+IF NOT "!CR_EXIT!"=="0" GOTO :ERROR_STAGE
 IF NOT EXIST "%DATA_DIR%\alertas.csv" GOTO :ERROR_OUTPUT
 IF NOT EXIST "%DATA_DIR%\secuencia.txt" GOTO :ERROR_OUTPUT
 
-ECHO [OK] COBOL completed.
+ECHO OK
 ECHO.
 
-ECHO [4/4] MIPS - Checksum Integrity Verification
+<NUL SET /P "_s=[MIPS] Calculando firma... "
 ECHO ==========================================
 
 IF DEFINED MIPS_MARS_JAR GOTO :MARS
@@ -99,7 +127,8 @@ IF NOT EXIST "%MIPS_MARS_JAR%" GOTO :ERROR_MIPS_CONFIG
 
 java -jar "%MIPS_MARS_JAR%" nc mips\checksum.asm
 
-IF ERRORLEVEL 1 GOTO :ERROR_STAGE
+SET "MARS_EXIT=!ERRORLEVEL!"
+IF NOT "!MARS_EXIT!"=="0" GOTO :ERROR_STAGE
 
 GOTO :CHECK_MIPS_OUTPUT
 
@@ -107,7 +136,8 @@ GOTO :CHECK_MIPS_OUTPUT
 
 "%MIPS_SIMULATOR%" -file mips\checksum.asm
 
-IF ERRORLEVEL 1 GOTO :ERROR_STAGE
+SET "SPIM_EXIT=!ERRORLEVEL!"
+IF NOT "!SPIM_EXIT!"=="0" GOTO :ERROR_STAGE
 
 GOTO :CHECK_MIPS_OUTPUT
 
@@ -115,16 +145,24 @@ GOTO :CHECK_MIPS_OUTPUT
 
 IF NOT EXIST "%DATA_DIR%\checksum.txt" GOTO :ERROR_OUTPUT
 
-FINDSTR /R /X /C:"CHECKSUM=[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]" ^
-    "%DATA_DIR%\checksum.txt" >NUL
+REM MARS writes LF-only line endings; FINDSTR /X fails on LF-only files,
+REM so the line is re-normalized to CRLF in a temp file before validating.
+SET "CS_LINE="
+FOR /F "usebackq delims=" %%L IN ("%DATA_DIR%\checksum.txt") DO SET "CS_LINE=%%L"
+IF NOT DEFINED CS_LINE GOTO :ERROR_OUTPUT
 
-IF ERRORLEVEL 1 GOTO :ERROR_OUTPUT
+>"%TEMP%\polyflow_checksum.tmp" ECHO !CS_LINE!
+FINDSTR /R /X /C:"CHECKSUM=[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]" "%TEMP%\polyflow_checksum.tmp" >NUL
+SET "CS_VALID=!ERRORLEVEL!"
+DEL /Q "%TEMP%\polyflow_checksum.tmp" 2>NUL
 
-ECHO [OK] MIPS completed.
+IF NOT "!CS_VALID!"=="0" GOTO :ERROR_OUTPUT
+
+ECHO OK
 ECHO.
 
 ECHO ========================================================================
-ECHO PIPELINE COMPLETED SUCCESSFULLY
+ECHO PIPELINE COMPLETADO
 ECHO ========================================================================
 
 EXIT /B 0

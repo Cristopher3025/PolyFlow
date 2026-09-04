@@ -1,107 +1,84 @@
-# MIPS - Checksum Verification (Updated)
+# MIPS · Etapa 4 — Verificación de integridad (checksum)
 
-## Overview
+## Rol en el pipeline
 
-This component implements integrity verification of the pipeline output using checksum computation in MIPS assembly.
+Consume la secuencia de alertas generada por COBOL y produce la firma de
+integridad final del pipeline.
 
-**Responsible Developer**: Justin  
-**Language**: MIPS Assembly  
-**Development Environment**: VS Code with MIPS simulator (MARS or QtSPIM)
+## Entrada
 
----
-
-## Input/Output Specification
-
-### Input
-- **File**: `data/alertas.csv`
-- **Format**: CSV with alert records (STATION, RULE_ID, ALERT_TYPE, ALERT_VALUE)
-- **Source**: COBOL rules engine
-
-- **File**: `data/secuencia.txt`
-- **Format**: Plain text, single line with comma-separated rule IDs
-- **Source**: COBOL rules engine
-
-### Output
-- **File**: `data/checksum.txt`
-- **Format**: Plain text, single line: `CHECKSUM=<value>`
-- **Content**: 8-character hexadecimal checksum value
-- **Purpose**: Verify data integrity and detect corruption
-
----
-
-## Checksum Algorithm
-
-### Specification
-
-The checksum is computed over combined data from both input files.
-
-**Algorithm**: CRC-32 or simple XOR-based checksum (to be fully documented in CHECKSUM.md)
-
-**Process**:
-1. Read all bytes from alertas.csv
-2. Read all bytes from secuencia.txt
-3. Apply checksum algorithm to combined byte stream
-4. Format result as 8-character hexadecimal string
-
-**Output Format**:
+`data/secuencia.txt` — identificadores de alerta separados por coma
+(una línea), o `SIN_ALERTAS`:
 ```
-CHECKSUM=A3F2E891
+LLUVIA_INTENSA,BATERIA_BAJA,TEMP_ALTA
 ```
 
----
+## Salida
 
-## Implementation Roadmap
-
-### Phase 1: Scaffolding (Current)
-- [x] Create file structure and README
-- [ ] Implement basic program skeleton
-- [ ] Define checksum algorithm
-
-### Phase 2: Core Functionality
-- [ ] Implement file I/O in MIPS
-- [ ] Implement byte reading logic
-- [ ] Implement checksum calculation
-
-### Phase 3: Integration Testing
-- [ ] Test with sample output from COBOL
-- [ ] Verify checksum reproducibility
-- [ ] Validate output format
-
-### Phase 4: Documentation & Refinement
-- [ ] Document algorithm in detail (CHECKSUM.md)
-- [ ] Add comprehensive comments
-- [ ] Test edge cases
-
----
-
-## Development Guidelines
-
-### 1. Algorithm Selection
-- Simple checksum: XOR all bytes
-- Moderate: Sum all bytes with wrap
-- Complex: CRC-32 (if familiar)
-- Choose based on simplicity vs. robustness
-
-### 2. Testing
+`data/checksum.txt`:
 ```
-Test 1: Known input
-  Input:  Simple file with known content
-  Verify: Checksum reproducible
+CHECKSUM=00000060
+```
+`CHECKSUM=` + 8 dígitos hexadecimales en mayúsculas + salto de línea
+(18 bytes exactos).
 
-Test 2: Different data
-  Input:  Two different input files
-  Verify: Different checksums produced
+## Algoritmo (según el enunciado)
 
-Test 3: Byte order
-  Input:  Test byte ordering issues
-  Verify: Consistent results
+Cada identificador tiene un valor numérico fijo:
+
+| Identificador | Valor |
+|---|---|
+| TEMP_ALTA | 10 |
+| LLUVIA_INTENSA | 20 |
+| VIENTO_FUERTE | 30 |
+| BATERIA_BAJA | 40 |
+
+Para cada identificador de la secuencia, en orden (posición desde 0):
+
+```
+checksum = checksum + valor
+checksum = checksum XOR posicion
 ```
 
----
+Ejemplo con `LLUVIA_INTENSA,VIENTO_FUERTE,BATERIA_BAJA,TEMP_ALTA`:
+`(0+20)^0=20` → `(20+30)^1=51` → `(51+40)^2=93` → `(93+10)^3=96`
+→ `CHECKSUM=00000060`. Detalle completo en [../docs/CHECKSUM.md](../docs/CHECKSUM.md).
 
-## References
+## Implementación (`checksum.asm`, MIPS32 / syscalls MARS)
 
-- [Data Contract](../docs/DATA_CONTRACT.md) - Input/output specifications (sections 4-6)
-- [Checksum Algorithm](../docs/CHECKSUM.md) - Detailed algorithm documentation (to be created)
-- [Architecture](../docs/ARCHITECTURE.md) - Pipeline overview
-- Test data: Sample alert files in `tests/`
+- Lee el archivo completo con la syscall 14 a un buffer de 4096 bytes.
+- Tokeniza por delimitadores `,` (44), LF (10) y CR (13).
+- Compara cada token contra la tabla de identificadores
+  (`TEMP_ALTA`, `LLUVIA_INTENSA`, `VIENTO_FUERTE`, `BATERIA_BAJA`);
+  los tokens desconocidos se ignoran.
+- Acumula el checksum en `$s0` y la posición en `$s1`.
+- Convierte el resultado a hexadecimal con la tabla `0123456789ABCDEF`
+  y escribe 18 bytes con la syscall 15.
+
+**Importante**: las rutas `data/secuencia.txt` y `data/checksum.txt` son
+relativas; ejecutar siempre desde la raíz del repositorio (como hacen
+`PolyFlow.bat` y `run_pipeline.sh`).
+
+## Ejecución en simulador
+
+Con MARS (incluido en `tools/Mars4_5.jar`, autodetectado por
+`scripts/config.bat`):
+```batch
+java -jar tools\Mars4_5.jar nc mips\checksum.asm
+```
+
+Con una instalación propia de MARS u otro simulador:
+```batch
+java -jar "%MIPS_MARS_JAR%" nc mips\checksum.asm
+```
+
+Con QtSPIM (alternativa soportada por los orquestadores):
+```batch
+"%MIPS_SIMULATOR%" -file mips\checksum.asm
+```
+
+## Referencias
+
+- [DATA_CONTRACT.md](../docs/DATA_CONTRACT.md) — secciones 5-6
+- [CHECKSUM.md](../docs/CHECKSUM.md) — especificación y ejemplo paso a paso
+- [GRAMMAR.md](../docs/GRAMMAR.md) — identificadores válidos

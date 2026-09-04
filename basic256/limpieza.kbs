@@ -1,3 +1,8 @@
+# ======================================================
+# PolyFlow - Etapa 1: Limpieza y validacion de datos
+# BASIC-256 0.9.6.68 (sintaxis compatible, sin regex)
+# ======================================================
+
 print "=========================================="
 print "       POLYFLOW - LIMPIEZA DE DATOS"
 print "=========================================="
@@ -19,7 +24,6 @@ WIND_MAX = 150
 BATTERY_MIN = 0
 BATTERY_MAX = 100
 
-
 # --------------------------------------------------
 # Counters
 # --------------------------------------------------
@@ -29,7 +33,6 @@ recordsValid = 0
 recordsInvalid = 0
 duplicateIDs = 0
 
-
 # --------------------------------------------------
 # File paths
 # --------------------------------------------------
@@ -37,19 +40,15 @@ duplicateIDs = 0
 inputFile$ = "../data/datos_crudos.csv"
 outputFile$ = "../data/datos_normalizados.csv"
 
-
 # --------------------------------------------------
 # Verify input file
 # --------------------------------------------------
 
 if not exists(inputFile$) then
-
     print "ERROR: No se encontro el archivo de entrada."
     print inputFile$
     end
-
 end if
-
 
 # --------------------------------------------------
 # Remove previous generated output
@@ -59,14 +58,12 @@ if exists(outputFile$) then
     kill outputFile$
 end if
 
-
 # --------------------------------------------------
 # Open files
 # --------------------------------------------------
 
 open 1, inputFile$
 open 2, outputFile$
-
 
 # --------------------------------------------------
 # Read input header
@@ -75,16 +72,12 @@ open 2, outputFile$
 header$ = trim(readline(1))
 
 if header$ <> "ID,STATION,TEMPERATURE,PRECIPITATION,WIND,BATTERY" then
-
     close 1
     close 2
-
     print "ERROR: Encabezado CSV invalido."
     print header$
     end
-
 end if
-
 
 # --------------------------------------------------
 # Write output header
@@ -92,21 +85,18 @@ end if
 
 writeline 2, "ID,STATION,TEMPERATURE,PRECIPITATION,WIND,BATTERY"
 
-
 # --------------------------------------------------
-# Maps
-#
-# idIndex:
-# Detects duplicate IDs.
-#
-# sortedRecords:
-# Stores valid records using STATION + ID as key.
-# BASIC-256 keeps maps alphabetically ordered.
+# Record buffers
 # --------------------------------------------------
 
-map idIndex
-map sortedRecords
+MAXRECORDS = 1000
 
+dim acceptedIDs$(MAXRECORDS)
+dim sortKeys$(MAXRECORDS)
+dim sortLines$(MAXRECORDS)
+
+acceptedCount = 0
+validCount = 0
 
 # --------------------------------------------------
 # Process input line by line
@@ -114,249 +104,167 @@ map sortedRecords
 
 while not eof(1)
 
-    # Trim removes spaces and carriage returns
-    # from the beginning/end of the line.
     line$ = trim(readline(1))
 
-    # Ignore empty lines.
     if line$ <> "" then
 
         recordsProcessed = recordsProcessed + 1
 
-        # Split CSV line into fields.
         fields$ = explode(line$, ",")
 
         isValid = true
 
-
-        # --------------------------------------------------
-        # Verify field count
-        #
-        # [ ? ] is the documented BASIC-256 array-length
-        # operator. It returns the number of elements.
-        # --------------------------------------------------
-
+        # Field count must be exactly 6
         if fields$[?] <> 6 then
             isValid = false
         end if
 
-
-        # --------------------------------------------------
         # Trim individual fields
-        # --------------------------------------------------
-
         if isValid then
-
-            fields$[0] = trim(fields$[0])
-            fields$[1] = trim(fields$[1])
-            fields$[2] = trim(fields$[2])
-            fields$[3] = trim(fields$[3])
-            fields$[4] = trim(fields$[4])
-            fields$[5] = trim(fields$[5])
-
+            for i = 0 to 5
+                fields$[i] = trim(fields$[i])
+            next i
         end if
 
-
-        # --------------------------------------------------
-        # Verify required fields
-        # --------------------------------------------------
-
+        # Required fields must not be empty
         if isValid then
-
-            if fields$[0] = "" then
-                isValid = false
-            end if
-
-            if fields$[1] = "" then
-                isValid = false
-            end if
-
-            if fields$[2] = "" then
-                isValid = false
-            end if
-
-            if fields$[3] = "" then
-                isValid = false
-            end if
-
-            if fields$[4] = "" then
-                isValid = false
-            end if
-
-            if fields$[5] = "" then
-                isValid = false
-            end if
-
+            for i = 0 to 5
+                if fields$[i] = "" then
+                    isValid = false
+                end if
+            next i
         end if
 
-
-        # --------------------------------------------------
-        # Verify ID format
-        #
-        # ID must contain only letters and numbers.
-        # --------------------------------------------------
-
+        # ID must be alphanumeric
         if isValid then
-
             if not isAlphanumeric(fields$[0]) then
                 isValid = false
             end if
-
         end if
 
-
-        # --------------------------------------------------
-        # Verify numeric fields
-        # --------------------------------------------------
-
+        # Numeric fields must be valid numbers
         if isValid then
-
             if not isNumber(fields$[2]) then
                 isValid = false
             end if
-
             if not isNumber(fields$[3]) then
                 isValid = false
             end if
-
             if not isNumber(fields$[4]) then
                 isValid = false
             end if
-
             if not isNumber(fields$[5]) then
                 isValid = false
             end if
-
         end if
 
-
-        # --------------------------------------------------
         # Convert numeric fields
-        # --------------------------------------------------
-
         if isValid then
-
             temperature = fields$[2] * 1
             precipitation = fields$[3] * 1
             wind = fields$[4] * 1
             battery = fields$[5] * 1
-
         end if
 
-
-        # --------------------------------------------------
         # Validate temperature
-        # --------------------------------------------------
-
         if isValid then
-
             if temperature < TEMPERATURE_MIN or temperature > TEMPERATURE_MAX then
                 isValid = false
             end if
-
         end if
 
-
-        # --------------------------------------------------
         # Validate precipitation
-        # --------------------------------------------------
-
         if isValid then
-
             if precipitation < PRECIPITATION_MIN or precipitation > PRECIPITATION_MAX then
                 isValid = false
             end if
-
         end if
 
-
-        # --------------------------------------------------
         # Validate wind
-        # --------------------------------------------------
-
         if isValid then
-
             if wind < WIND_MIN or wind > WIND_MAX then
                 isValid = false
             end if
-
         end if
 
-
-        # --------------------------------------------------
         # Validate battery
-        # --------------------------------------------------
-
         if isValid then
-
             if battery < BATTERY_MIN or battery > BATTERY_MAX then
                 isValid = false
             end if
-
         end if
 
-
-        # --------------------------------------------------
-        # Verify ID uniqueness
-        #
-        # Map length is used to determine whether the ID
-        # already existed.
-        # --------------------------------------------------
-
+        # ID uniqueness (linear search over accepted IDs)
         if isValid then
-
-            idCountBefore = length(idIndex)
-
-            idIndex[fields$[0]] = 1
-
-            if length(idIndex) = idCountBefore then
-
+            isDuplicate = false
+            if acceptedCount > 0 then
+                for i = 0 to acceptedCount - 1
+                    if acceptedIDs$[i] = fields$[0] then
+                        isDuplicate = true
+                    end if
+                next i
+            end if
+            if isDuplicate then
                 isValid = false
                 duplicateIDs = duplicateIDs + 1
-
+            else
+                acceptedIDs$[acceptedCount] = fields$[0]
+                acceptedCount = acceptedCount + 1
             end if
-
         end if
 
-
-        # --------------------------------------------------
-        # Store valid record for sorted output
-        # --------------------------------------------------
-
+        # Store valid record with sort key STATION|ID
         if isValid then
-
-            # Reconstruct the CSV line using trimmed fields.
             normalizedLine$ = fields$[0] + "," + fields$[1] + "," + fields$[2] + "," + fields$[3] + "," + fields$[4] + "," + fields$[5]
-
-            # STATION first, ID second.
-            # Upper() makes station sorting case-insensitive.
-            sortKey$ = upper(fields$[1]) + "|" + fields$[0]
-
-            sortedRecords[sortKey$] = normalizedLine$
-
+            sortKeys$[validCount] = upper(fields$[1]) + "|" + fields$[0]
+            sortLines$[validCount] = normalizedLine$
+            validCount = validCount + 1
             recordsValid = recordsValid + 1
-
         else
-
             recordsInvalid = recordsInvalid + 1
-
         end if
 
     end if
 
 end while
 
+# --------------------------------------------------
+# Insertion sort by key (STATION, then ID)
+# --------------------------------------------------
+
+if validCount > 1 then
+    for i = 1 to validCount - 1
+        currentKey$ = sortKeys$[i]
+        currentLine$ = sortLines$[i]
+        j = i - 1
+        shiftDone = false
+        while not shiftDone
+            if j < 0 then
+                shiftDone = true
+            else
+                if sortKeys$[j] <= currentKey$ then
+                    shiftDone = true
+                else
+                    sortKeys$[j + 1] = sortKeys$[j]
+                    sortLines$[j + 1] = sortLines$[j]
+                    j = j - 1
+                end if
+            end if
+        end while
+        sortKeys$[j + 1] = currentKey$
+        sortLines$[j + 1] = currentLine$
+    next i
+end if
 
 # --------------------------------------------------
 # Write valid records in sorted order
 # --------------------------------------------------
 
-for each sortKey -> normalizedLine$ in sortedRecords
-
-    writeline 2, normalizedLine$
-
-next sortKey
-
+if validCount > 0 then
+    for i = 0 to validCount - 1
+        writeline 2, sortLines$[i]
+    next i
+end if
 
 # --------------------------------------------------
 # Close files
@@ -364,7 +272,6 @@ next sortKey
 
 close 1
 close 2
-
 
 # --------------------------------------------------
 # Display results
@@ -378,24 +285,91 @@ print ""
 print "Archivo generado:"
 print outputFile$
 
+end
 
 # --------------------------------------------------
 # Function: verify numeric value
+#
+# Compatible replacement for the regex-based version.
+# Accepts: optional leading "-", digits, optional
+# decimal part (".5" and "1.2.3" are rejected).
 # --------------------------------------------------
 
-function isNumber(value$)
+function isNumber(v$)
 
-    return instrx(value$, "^-?\d+\.?\d*$") <> 0
+    n = length(v$)
+
+    if n = 0 then
+        return false
+    end if
+
+    i = 1
+    if mid(v$, 1, 1) = "-" then
+        i = 2
+    end if
+
+    digits = 0
+    digitsBeforeDot = 0
+    dotSeen = false
+
+    while i <= n
+        c$ = mid(v$, i, 1)
+        if c$ = "." then
+            if dotSeen then
+                return false
+            end if
+            dotSeen = true
+        else
+            if instr("0123456789", c$) = 0 then
+                return false
+            end if
+            digits = digits + 1
+            if not dotSeen then
+                digitsBeforeDot = digitsBeforeDot + 1
+            end if
+        end if
+        i = i + 1
+    end while
+
+    if digits = 0 then
+        return false
+    end if
+
+    if dotSeen and digitsBeforeDot = 0 then
+        return false
+    end if
+
+    return true
 
 end function
 
 
 # --------------------------------------------------
 # Function: verify alphanumeric ID
+#
+# Compatible replacement for the regex-based version.
+# Accepts only A-Z, a-z and 0-9.
 # --------------------------------------------------
 
 function isAlphanumeric(value$)
 
-    return instrx(value$, "^[A-Za-z0-9]+$") <> 0
+    allowed$ = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+
+    n = length(value$)
+
+    if n = 0 then
+        return false
+    end if
+
+    for k = 1 to n
+        c$ = mid(value$, k, 1)
+        if instr(allowed$, c$) = 0 then
+            return false
+        end if
+    next k
+
+    return true
 
 end function
+
+

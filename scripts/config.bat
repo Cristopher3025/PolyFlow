@@ -16,6 +16,20 @@
 @ECHO OFF
 
 REM ========================================================================
+REM STEP 0: Toolchain PATH
+REM msys64 UCRT64 provides gfortran AND the DLLs its compiler needs. It is
+REM APPENDED (never prepended): putting it first makes its DLLs shadow the
+REM GnuCOBOL runtime ones and the rules engine crashes with 0xC0000139
+REM (entry point not found). Appended, gfortran is still found and its
+REM runtime DLLs resolve from the PATH tail.
+REM ========================================================================
+
+IF EXIST "C:\msys64\ucrt64\bin\gfortran.exe" SET "PATH=%PATH%;C:\msys64\ucrt64\bin"
+
+REM Adjust for other MinGW installations, e.g.:
+REM SET "PATH=C:\msys64\mingw64\bin;%PATH%"
+
+REM ========================================================================
 REM STEP 1: Set BASIC-256 Configuration
 REM ========================================================================
 REM Set the path to BASIC-256 executable
@@ -28,7 +42,13 @@ REM TODO: Update this path to your BASIC-256 installation
 REM
 
 SET "BASIC256_HOME="
-IF NOT DEFINED BASIC256_EXE SET "BASIC256_EXE=basic256"
+IF NOT DEFINED BASIC256_EXE (
+  IF EXIST "C:\Program Files (x86)\BASIC256\basic256.exe" (
+    SET "BASIC256_EXE=C:\Program Files (x86)\BASIC256\basic256.exe"
+  ) ELSE (
+    SET "BASIC256_EXE=basic256"
+  )
+)
 
 IF DEFINED BASIC256_EXE (
   ECHO [CONFIG] BASIC-256: !BASIC256_EXE!
@@ -47,7 +67,7 @@ REM Test: In command prompt, type: gfortran --version
 REM 
 
 IF NOT DEFINED FORTRAN_COMPILER SET "FORTRAN_COMPILER=gfortran"
-SET "FORTRAN_FLAGS=-o fortran\bin\metrics"
+SET "FORTRAN_FLAGS=-std=f2008 -Wall -Wextra -O2 -static"
 SET "FORTRAN_SOURCE=fortran\procesamiento.f90"
 
 ECHO [CONFIG] FORTRAN Compiler: !FORTRAN_COMPILER!
@@ -80,19 +100,23 @@ REM   - QtSPIM: http://spimsimulator.org/
 REM 
 
 IF NOT DEFINED MIPS_SIMULATOR SET "MIPS_SIMULATOR="
-IF NOT DEFINED MIPS_MARS_JAR SET "MIPS_MARS_JAR="
+IF NOT DEFINED MIPS_MARS_JAR (
+  IF EXIST "tools\Mars4_5.jar" SET "MIPS_MARS_JAR=%CD%\tools\Mars4_5.jar"
+)
 
 REM For MARS (Java-based):
-REM SET "MIPS_MARS_JAR=C:\path\to\Mars.jar"
+REM SET "MIPS_MARS_JAR=C:\path\to\Mars4_5.jar"
 
 REM For QtSPIM (native):
 REM SET "MIPS_SIMULATOR=C:\Program Files\QtSPIM\QtSPIM.exe"
 
-IF DEFINED MIPS_SIMULATOR (
+IF DEFINED MIPS_MARS_JAR (
+  ECHO [CONFIG] MIPS MARS JAR: !MIPS_MARS_JAR!
+) ELSE IF DEFINED MIPS_SIMULATOR (
   ECHO [CONFIG] MIPS Simulator: !MIPS_SIMULATOR!
 ) ELSE (
   ECHO [WARNING] MIPS simulator path not configured
-  ECHO   Update MIPS_SIMULATOR or MIPS_MARS_JAR in this script
+  ECHO   Set MIPS_MARS_JAR or MIPS_SIMULATOR in this script
 )
 
 REM ========================================================================

@@ -87,13 +87,16 @@ This document defines the strict interface between pipeline stages. All particip
 
 | Field | Type | Constraints | Example | Description |
 |-------|------|-------------|---------|-------------|
-| STATION | String | Max 20 chars | "COTO" | Weather station identifier |
-| AVG_TEMPERATURE | Float | Range: -50.0 to 60.0°C | 28.5 | Average temperature across records |
-| MAX_TEMPERATURE | Float | Range: -50.0 to 60.0°C | 36.8 | Maximum temperature across records |
-| MIN_TEMPERATURE | Float | Range: -50.0 to 60.0°C | 25.4 | Minimum temperature across records |
-| TOTAL_PRECIPITATION | Float | Range: 0.0 to 3000.0 mm | 45.6 | Sum of all precipitation values |
-| AVG_WIND | Float | Range: 0.0 to 150.0 km/h | 15.2 | Average wind speed across records |
-| AVG_BATTERY | Float | Range: 0.0 to 100.0 % | 85.5 | Average battery level across records |
+| ESTACION | String | Max 20 chars | "COTO" | Weather station identifier |
+| TEMP_PROM | Float | Range: -50.0 to 60.0°C | 28.5 | Average temperature across records |
+| TEMP_MAX | Float | Range: -50.0 to 60.0°C | 36.8 | Maximum temperature across records |
+| TEMP_MIN | Float | Range: -50.0 to 60.0°C | 25.4 | Minimum temperature across records |
+| LLUVIA_TOTAL | Float | Range: 0.0 to 3000.0 mm | 45.6 | Sum of all precipitation values |
+| VIENTO_PROM | Float | Range: 0.0 to 150.0 km/h | 15.2 | Average wind speed across records |
+| VIENTO_MAX | Float | Range: 0.0 to 150.0 km/h | 65.0 | Maximum wind speed across records |
+| BATERIA_PROM | Float | Range: 0.0 to 100.0 % | 85.5 | Average battery level across records |
+
+Header line: `ESTACION,TEMP_PROM,TEMP_MAX,TEMP_MIN,LLUVIA_TOTAL,VIENTO_PROM,VIENTO_MAX,BATERIA_PROM`
 
 ### Format
 - **Delimiter**: Comma (,)
@@ -126,10 +129,13 @@ This document defines the strict interface between pipeline stages. All particip
 
 | Field | Type | Constraints | Example | Description |
 |-------|------|-------------|---------|-------------|
-| STATION | String | Max 20 chars | "COTO" | Weather station identifier |
-| RULE_ID | String | Format: "R###" | "R001" | Unique rule identifier |
-| ALERT_TYPE | String | See Alert Types | "HIGH_TEMP" | Category of alert triggered |
-| ALERT_VALUE | Float | Depends on alert type | 38.5 | Value that triggered the alert |
+| ESTACION | String | Max 20 chars | "GOLFITO" | Weather station identifier |
+| IDENTIFICADOR | String | Official identifiers | "LLUVIA_INTENSA" | Identifier of the triggered rule |
+| OPERADOR | String | > < >= <= | ">" | Operator of the triggered rule |
+| UMBRAL | Float | Rule threshold | 50.0000 | Threshold of the triggered rule |
+| VALOR | Float | Metric value | 110.0000 | Metric value that triggered the alert |
+
+Header line: `ESTACION,IDENTIFICADOR,OPERADOR,UMBRAL,VALOR`
 
 ### Format
 - **Delimiter**: Comma (,)
@@ -138,23 +144,27 @@ This document defines the strict interface between pipeline stages. All particip
 - **Header**: Required
 - **Missing Values**: None
 
-### Alert Types
+### Alert Identifiers (official)
+
 ```
-HIGH_TEMPERATURE    - Temperature > 35°C
-LOW_BATTERY         - Battery < 20%
-EXCESSIVE_WIND      - Wind speed >= 60 km/h
-HIGH_PRECIPITATION  - Precipitation > 100 mm
-EXTREME_CONDITIONS  - Multiple alerts for same station
+TEMP_ALTA       - TEMP_MAX      > threshold (e.g. 35 °C)
+LLUVIA_INTENSA  - LLUVIA_TOTAL  > threshold (e.g. 50 mm)
+VIENTO_FUERTE   - VIENTO_MAX    > threshold (e.g. 40 km/h)
+BATERIA_BAJA    - BATERIA_PROM  < threshold (e.g. 20 %)
 ```
+
+The identifier, operator and threshold come from `input/reglas.txt`
+(see [GRAMMAR.md](GRAMMAR.md)); the evaluated metric column per
+identifier is fixed by the mapping above.
 
 ### Guarantees
 - One row per alert triggered
 - Multiple alerts possible per station
-- Records sorted by STATION, then by RULE_ID
+- Records in evaluation order (station by station, rules in file order)
 - Alert values match metric field that triggered it
 
 ### Quality Assurance
-- No duplicate alerts (same station + same rule)
+- No duplicate alerts per station (each stored rule evaluates once per station)
 - Alert values correspond to metrics provided by FORTRAN
 - All alert types valid per defined list
 
@@ -170,34 +180,34 @@ EXTREME_CONDITIONS  - Multiple alerts for same station
 
 | Field | Type | Constraints | Example | Description |
 |-------|------|-------------|---------|-------------|
-| SEQUENCE | String | Format: sequence of alerts | "R001,R003,R001" | Comma-separated rule IDs in order |
+| SEQUENCE | String | Format: sequence of alerts | "LLUVIA_INTENSA,TEMP_ALTA" | Comma-separated alert identifiers in order |
 
 ### Format
 - **File Type**: Plain text
 - **Encoding**: UTF-8
 - **Line Structure**: Single line containing alert sequence
-- **Delimiter**: Comma (,) between rule IDs
-- **Content**: Rule IDs as they were triggered during processing
+- **Delimiter**: Comma (,) between identifiers
+- **Content**: Official alert identifiers as they were triggered during processing
 
 ### Specifications
-- **Line Format**: `R###,R###,R###,...`
-- **Minimum**: 1 rule ID
+- **Line Format**: `IDENT,IDENT,IDENT,...` (identifiers defined in GRAMMAR.md)
+- **Minimum**: 1 identifier, or the literal `SIN_ALERTAS` when no rule matched
 - **Order**: Chronological order of rule evaluation
 - **No Spaces**: Strictly no spaces around commas
 
 ### Example
 ```
-R001,R002,R001,R004
+LLUVIA_INTENSA,VIENTO_FUERTE,BATERIA_BAJA,TEMP_ALTA
 ```
 
 ### Guarantees
 - Sequence reflects processing order of rules
-- Each R### corresponds to a rule that generated an alert
+- Each token is an official identifier that generated an alert
 - Non-empty if any alerts generated
 - Complete record of rule execution path
 
 ### Quality Assurance
-- All rule IDs valid and exist in alertas.csv
+- All identifiers valid and consistent with alertas.csv
 - Sequence length matches number of alerts generated
 - Can be used for audit trail and verification
 
@@ -223,8 +233,8 @@ R001,R002,R001,R004
 
 ### Specifications
 - **Format**: 8-character hexadecimal string (uppercase)
-- **Algorithm**: CRC-32 or similar (documented in docs/checksum.md)
-- **Input Data**: Combination of alertas.csv and secuencia.txt
+- **Algorithm**: Official course algorithm (identifier mapping 10/20/30/40, sum + XOR position; see docs/CHECKSUM.md)
+- **Input Data**: secuencia.txt (alert identifier sequence)
 - **Line Format**: `CHECKSUM=<value>` (with equals sign)
 
 ### Example
@@ -233,13 +243,13 @@ CHECKSUM=A3F2E891
 ```
 
 ### Guarantees
-- Computed from both alertas.csv and secuencia.txt
+- Computed from secuencia.txt (official alert identifiers)
 - Deterministic (same input always produces same checksum)
 - Can detect data corruption in pipeline output
 
 ### Quality Assurance
 - Checksum value reproducible from source files
-- Documented algorithm available in docs/checksum.md
+- Documented algorithm available in docs/CHECKSUM.md
 - Can verify pipeline integrity end-to-end
 
 ---

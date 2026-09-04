@@ -96,7 +96,7 @@ BASIC-256 → FORTRAN → COBOL → MIPS
 4. Implement `cobol/rules_engine.cob`
 5. Compile: `cobc -x -free -o bin/polyflow_rules.exe cobol/rules_engine.cob`
 6. Test with sample metrics
-7. Verify alerts.csv and secuencia.txt format
+7. Verify alertas.csv and secuencia.txt format
 8. Commit to git repository
 
 ### Justin (MIPS)

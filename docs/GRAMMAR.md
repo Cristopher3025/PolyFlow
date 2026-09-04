@@ -1,263 +1,78 @@
-# PolyFlow Rules Grammar
+# Gramática del mini-lenguaje de reglas (oficial)
 
-## Overview
-
-The rules engine processes environmental metrics and evaluates conditions to generate alerts. This document defines the formal grammar and semantics for rule definition and evaluation.
+Este documento define la gramática formal que interpreta el motor de reglas
+(Etapa 3, `cobol/rules_engine.cob`). El archivo de reglas es `input/reglas.txt`.
 
 ---
 
-## Formal Grammar
+## Gramática formal (BNF)
 
 ```
-RULESET     ::= RULE+
-RULE        ::= "RULE" RULE_ID CONDITION ("->" | "=>") ACTION
-RULE_ID     ::= "R" DIGIT{3}
-CONDITION   ::= TERM (LOGICAL_OP TERM)*
-TERM        ::= FIELD RELOP VALUE
-LOGICAL_OP  ::= "AND" | "OR"
-FIELD       ::= "TEMPERATURE" | "PRECIPITATION" | "WIND" | "BATTERY"
-RELOP       ::= ">" | "<" | ">=" | "<=" | "==" | "!="
-VALUE       ::= FLOAT | INTEGER
-ACTION      ::= "ALERT_" ALERT_NAME
-ALERT_NAME  ::= ALPHA{1,32}
-FLOAT       ::= "-"? DIGIT+ "." DIGIT+
-INTEGER     ::= "-"? DIGIT+
-DIGIT       ::= "0" | "1" | ... | "9"
-ALPHA       ::= "A" | "B" | ... | "Z" | "a" | "b" | ... | "z" | "_"
+<archivo_reglas> ::= <linea>*
+<linea>          ::= <comentario> | <regla> | <linea_vacia>
+<comentario>     ::= "#" <texto_libre>
+<regla>          ::= <identificador> <operador> <numero>
+<operador>       ::= ">" | "<" | ">=" | "<="
+<identificador>  ::= "TEMP_ALTA" | "LLUVIA_INTENSA"
+                  |  "VIENTO_FUERTE" | "BATERIA_BAJA"
+<numero>         ::= DIGITO+ ( "." DIGITO+ )?
+DIGITO           ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
 ```
 
 ---
 
-## Rule Components
+## Ejemplos
 
-### Rule ID
-- Format: `R` followed by exactly 3 digits
-- Range: R000 to R999 (1000 possible rules)
-- Purpose: Unique identifier for tracking alert generation
-- Example: `R001`, `R042`, `R999`
-
-### Conditions
-Conditions evaluate metric values against thresholds.
-
-#### Field Names
-```
-TEMPERATURE     - Average temperature (°C)
-PRECIPITATION   - Total precipitation (mm)
-WIND            - Average wind speed (km/h)
-BATTERY         - Average battery level (%)
-```
-
-#### Relational Operators
-```
->               - Greater than
-<               - Less than
->=              - Greater than or equal
-<=              - Less than or equal
-==              - Exactly equal
-!=              - Not equal
-```
-
-#### Values
-- Floating-point or integer numbers
-- May include negative values (e.g., for boundary conditions)
-- Context-dependent (e.g., TEMPERATURE values in Celsius)
-
-#### Logical Connectors
-```
-AND             - Both conditions must be true
-OR              - At least one condition must be true
-```
-
-### Actions
-When a condition evaluates to true, trigger an action.
-
-#### Alert Generation
-- Format: `ALERT_` followed by alert type name
-- Alert type must be uppercase or mixed case with underscores
-- Examples: `ALERT_HIGH_TEMPERATURE`, `ALERT_EXCESSIVE_WIND`
+| Regla | Estado | Motivo |
+|-------|--------|--------|
+| `TEMP_ALTA > 35` | ✅ Válida | identificador + operador + número |
+| `BATERIA_BAJA < 20` | ✅ Válida | idéntico al anterior |
+| `> TEMP_ALTA 35` | ❌ Inválida | orden incorrecto de los tokens |
+| `LLUVIA_INTENSA >` | ❌ Inválida | falta el número |
+| `HUMEDAD > 80` | ❌ Inválida | identificador fuera de la lista oficial |
 
 ---
 
-## Examples
+## Mapeo identificador → métrica evaluada (`data/metricas.csv`)
 
-### Example 1: Simple Temperature Alert
-```
-RULE R001 TEMPERATURE > 35 -> ALERT_HIGH_TEMPERATURE
-```
-**Interpretation**: If average temperature exceeds 35°C, trigger alert R001 for high temperature.
-
-### Example 2: Compound Condition
-```
-RULE R002 WIND >= 60 AND BATTERY < 20 -> ALERT_CRITICAL_CONDITIONS
-```
-**Interpretation**: If wind is excessive AND battery is low, trigger alert R002.
-
-### Example 3: Precipitation Alert
-```
-RULE R003 PRECIPITATION > 100 -> ALERT_HEAVY_RAINFALL
-```
-**Interpretation**: If total precipitation exceeds 100mm, trigger alert R003.
-
-### Example 4: Multiple Conditions
-```
-RULE R004 TEMPERATURE > 30 OR TEMPERATURE < 5 -> ALERT_EXTREME_TEMPERATURE
-```
-**Interpretation**: If temperature is either very high or very low, trigger alert R004.
-
-### Example 5: Negative Values
-```
-RULE R005 BATTERY <= 0 -> ALERT_SENSOR_FAILURE
-```
-**Interpretation**: If battery level is zero or negative (invalid data), trigger alert R005.
+| Identificador | Columna evaluada | Significado |
+|---------------|------------------|-------------|
+| TEMP_ALTA | TEMP_MAX | Temperatura máxima sobre el umbral |
+| LLUVIA_INTENSA | LLUVIA_TOTAL | Precipitación acumulada sobre el umbral |
+| VIENTO_FUERTE | VIENTO_MAX | Viento máximo sobre el umbral |
+| BATERIA_BAJA | BATERIA_PROM | Batería promedio bajo el umbral |
 
 ---
 
-## Rule Evaluation Semantics
+## Convenciones del archivo `input/reglas.txt`
 
-### Evaluation Order
-1. Rules are evaluated sequentially in order they appear in rule file
-2. Each rule is evaluated independently
-3. Multiple rules can trigger for same data record
-4. Alert sequence records order of evaluation
+- Una regla por línea; máximo 50 reglas (límite del parser).
+- Las líneas que inician con `#` son comentarios.
+- Las líneas vacías se ignoran.
+- Los tokens se separan con espacios.
+- Codificación: texto plano, fin de línea LF.
 
-### Data Matching
-- Rules evaluate against **station metrics** (per station)
-- One rule evaluation = one rule applied to all metrics for station
-- Multiple alerts possible per station if conditions overlap
+## Errores y manejo
 
-### Alert Generation
-- When condition evaluates TRUE, alert is generated
-- Alert includes: STATION, RULE_ID, ALERT_TYPE, VALUE
-- VALUE = actual metric value that triggered condition
+- Regla con cantidad de tokens distinta de 3 → inválida.
+- Identificador desconocido → inválida.
+- Operador no perteneciente a `{>, <, >=, <=}` → inválida.
+- Número no convertible (`FUNCTION TEST-NUMVAL` falla) → inválida.
+- Las reglas inválidas se reportan con su número de línea y se cuentan
+  (`INVALID-RULES-COUNT`); el motor continúa con las válidas.
 
-### Sequence Tracking
-- Each alert (TRUE condition) adds rule ID to sequence
-- Sequence order = evaluation order
-- Sequence is deterministic (same input → same output)
+## Valores por defecto (demo)
 
----
+Si `input/reglas.txt` no existe, el motor carga:
 
-## Standard Alert Types
-
-| Alert Type | Condition | Threshold | Priority |
-|---|---|---|---|
-| HIGH_TEMPERATURE | TEMPERATURE > 35 | 35°C | HIGH |
-| LOW_TEMPERATURE | TEMPERATURE < 5 | 5°C | MEDIUM |
-| EXTREME_TEMPERATURE | TEMPERATURE > 40 OR TEMPERATURE < 0 | Multiple | CRITICAL |
-| HIGH_PRECIPITATION | PRECIPITATION > 100 | 100mm | MEDIUM |
-| EXCESSIVE_WIND | WIND >= 60 | 60 km/h | HIGH |
-| LOW_BATTERY | BATTERY < 20 | 20% | MEDIUM |
-| CRITICAL_BATTERY | BATTERY <= 10 | 10% | CRITICAL |
-| CRITICAL_CONDITIONS | Multiple conditions | Multiple | CRITICAL |
-| SENSOR_FAILURE | BATTERY <= 0 | 0% | CRITICAL |
-
----
-
-## Rule File Format
-
-### File Location
-`input/reglas.txt`
-
-### File Structure
 ```
-# PolyFlow Rules Configuration
-# Lines starting with # are comments
-# Each rule on separate line
-
-RULE R001 TEMPERATURE > 35 -> ALERT_HIGH_TEMPERATURE
-RULE R002 TEMPERATURE < 5 -> ALERT_LOW_TEMPERATURE
-RULE R003 PRECIPITATION > 100 -> ALERT_HIGH_PRECIPITATION
-RULE R004 WIND >= 60 -> ALERT_EXCESSIVE_WIND
-RULE R005 BATTERY < 20 -> ALERT_LOW_BATTERY
-RULE R006 TEMPERATURE > 35 AND WIND >= 60 -> ALERT_EXTREME_CONDITIONS
+TEMP_ALTA > 35
+LLUVIA_INTENSA > 50
+VIENTO_FUERTE > 40
+BATERIA_BAJA < 20
 ```
 
-### Parsing Rules
-- Comments: Lines starting with `#` are ignored
-- Whitespace: Leading/trailing whitespace trimmed
-- Case Sensitivity: Keywords uppercase (RULE, AND, OR), field names case-insensitive
-- Encoding: UTF-8, LF line endings
-- Error Handling: Invalid rules cause processing to halt with error
+## Referencias
 
----
-
-## Implementation Considerations
-
-### In COBOL
-
-The rules engine in COBOL should:
-
-1. **Read rule file**: Load all rules into memory or process sequentially
-2. **Parse each line**: Extract RULE_ID, FIELD, RELOP, VALUE, ALERT_NAME
-3. **For each metric record**:
-   - Evaluate each rule condition
-   - If TRUE, write alert record
-   - If TRUE, append rule ID to sequence
-4. **Output generation**:
-   - Write alertas.csv with alert records
-   - Write secuencia.txt with rule ID sequence
-
-### Edge Cases
-
-1. **No rules match**: Generate empty alertas.csv, empty secuencia.txt
-2. **Rule syntax error**: Abort with clear error message
-3. **Missing field reference**: Abort with field name and line number
-4. **Invalid operator**: Abort with operator and line number
-5. **Division by zero**: Avoid (no division operations in rules)
-
-### Performance
-
-- Rule evaluation should be efficient (typically < 1 second for 100 rules)
-- Sequential evaluation acceptable for academic project
-- No optimization required at this stage
-
----
-
-## Testing Strategy
-
-### Test Cases
-
-#### Test 1: Simple Conditions
-- Input: Single metric record, single rule
-- Verify: Correct alert generated or not generated
-
-#### Test 2: Multiple Rules
-- Input: Single metric record, multiple rules
-- Verify: All matching rules generate alerts in order
-
-#### Test 3: Compound Conditions
-- Input: Metrics with AND/OR conditions
-- Verify: Logical operations evaluated correctly
-
-#### Test 4: Edge Values
-- Input: Metrics exactly on threshold values
-- Verify: Boundary conditions (< vs <=) respected
-
-#### Test 5: Sequence Tracking
-- Input: Multiple alerts from same station
-- Verify: secuencia.txt contains correct rule order
-
-### Sample Test Data
-```
-# Test record 1: Triggers R001, R004, R006
-STATION: COTO
-AVG_TEMPERATURE: 38.5
-MAX_TEMPERATURE: 42.0
-MIN_TEMPERATURE: 35.0
-TOTAL_PRECIPITATION: 45.2
-AVG_WIND: 65.0
-AVG_BATTERY: 92.0
-
-Expected alerts:
-- R001 (TEMPERATURE > 35)
-- R004 (WIND >= 60)
-- R006 (TEMPERATURE > 35 AND WIND >= 60)
-```
-
----
-
-## References
-
-- [Data Contract](DATA_CONTRACT.md) - metricas.csv input specification
-- [Checksum Algorithm](CHECKSUM.md) - Verification of rules processed
-
+- [DATA_CONTRACT.md](DATA_CONTRACT.md) — formato de `alertas.csv` y `secuencia.txt`
+- [CHECKSUM.md](CHECKSUM.md) — cómo el MIPS consume la secuencia de alertas

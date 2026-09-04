@@ -1,164 +1,64 @@
-# FORTRAN - Metrics Calculation (Updated)
+# FORTRAN · Etapa 2 — Procesamiento numérico (métricas)
 
-## Overview
+## Rol en el pipeline
 
-This component processes normalized environmental data and calculates aggregated statistics per weather station.
+Recibe `data/datos_normalizados.csv` (producido por BASIC-256), agrupa por
+estación y calcula las métricas que consume el motor de reglas (COBOL).
 
-**Responsible Developer**: Anthony  
-**Language**: FORTRAN  
-**Development Environment**: VS Code with FORTRAN compiler (gfortran or ifort)
+## Entrada
 
----
+`data/datos_normalizados.csv`:
+```
+ID,STATION,TEMPERATURE,PRECIPITATION,WIND,BATTERY
+```
+Solo registros válidos: sin campos vacíos, valores en rango, sin IDs
+duplicados (garantía de la Etapa 1).
 
-## Input/Output Specification
+## Salida
 
-### Input
-- **File**: `data/datos_normalizados.csv`
-- **Format**: CSV with headers (ID, STATION, TEMPERATURE, PRECIPITATION, WIND, BATTERY)
-- **Source**: BASIC-256 cleaning stage
-- **Guarantees**: All records valid, no missing values, normalized ranges
-
-### Output
-- **File**: `data/metricas.csv`
-- **Format**: CSV with headers (STATION, AVG_TEMPERATURE, MAX_TEMPERATURE, etc.)
-- **Content**: One row per unique station with aggregated metrics
-- **Guarantees**: Sorted by station name, all calculations verified
-
----
-
-## Calculation Specifications
-
-For each weather station in the normalized data, calculate:
-
-| Metric | Formula | Range | Precision |
-|--------|---------|-------|-----------|
-| AVG_TEMPERATURE | Mean of all TEMPERATURE values | -50.0 to 60.0°C | 0.01°C |
-| MAX_TEMPERATURE | Maximum TEMPERATURE value | -50.0 to 60.0°C | 0.01°C |
-| MIN_TEMPERATURE | Minimum TEMPERATURE value | -50.0 to 60.0°C | 0.01°C |
-| TOTAL_PRECIPITATION | Sum of all PRECIPITATION values | 0.0 to 3000.0mm | 0.1mm |
-| AVG_WIND | Mean of all WIND values | 0.0 to 150.0 km/h | 0.01 km/h |
-| AVG_BATTERY | Mean of all BATTERY values | 0.0 to 100.0% | 0.1% |
-
----
-
-## Implementation Roadmap
-
-### Phase 1: Scaffolding (Current)
-- [x] Create file structure and README
-- [ ] Implement basic program skeleton
-
-### Phase 2: Core Functionality
-- [ ] Implement CSV input parsing
-- [ ] Build metric calculation logic
-- [ ] Generate CSV output
-
-### Phase 3: Integration Testing
-- [ ] Test with sample data from BASIC-256
-- [ ] Verify output format compliance
-- [ ] Validate calculation accuracy
-
-### Phase 4: Refinement
-- [ ] Add error handling
-- [ ] Optimize numerical precision
-- [ ] Document code thoroughly
-
----
-
-## Development Guidelines
-
-### 1. Array Management
-- Use efficient FORTRAN arrays for data storage
-- Pre-allocate size or use dynamic allocation
-- Handle station grouping logically
-
-### 2. Numerical Precision
-- Use REAL(KIND=8) for floating-point calculations
-- Maintain 2 decimal places in output
-- Verify calculations with manual test cases
-
-### 3. CSV Handling
-- Parse comma-separated values correctly
-- Handle numeric conversions
-- Preserve station names exactly
-
-### 4. Error Handling
-```fortran
-IF (ios /= 0) THEN
-  WRITE(*,*) "ERROR: Cannot open input file"
-  WRITE(*,*) "Path: data/datos_normalizados.csv"
-  STOP
-END IF
+`data/metricas.csv` — una fila por estación:
+```
+ESTACION,TEMP_PROM,TEMP_MAX,TEMP_MIN,LLUVIA_TOTAL,VIENTO_PROM,VIENTO_MAX,BATERIA_PROM
+COTO,31.00,36.00,31.00,6.00,21.50,25.00,79.00
 ```
 
-### 5. Testing
-```
-Test 1: Single station data
-  Input:  5 records, same station
-  Verify: 1 output row with correct calculations
+## Métricas calculadas
 
-Test 2: Multiple stations
-  Input:  10 records, 3 different stations
-  Verify: 3 output rows, sorted by station
+| Columna | Métrica del enunciado |
+|---|---|
+| TEMP_PROM | Temperatura promedio |
+| TEMP_MAX | Temperatura máxima |
+| TEMP_MIN | Temperatura mínima |
+| LLUVIA_TOTAL | Precipitación acumulada |
+| VIENTO_PROM | Viento promedio |
+| VIENTO_MAX | Viento máximo |
+| BATERIA_PROM | Batería promedio |
 
-Test 3: Edge values
-  Input:  Temperatures at min/max range
-  Verify: Calculations correct at boundaries
-```
+## Implementación (`procesamiento.f90`, estándar Fortran 2008)
 
----
+- Arrays de tamaño fijo para registros y estaciones (dataset académico).
+- Agrupación por nombre de estación; comparación de cadenas insensible a
+  mayúsculas no requerida (los nombres vienen normalizados).
+- Cálculos en `REAL(KIND=8)`; formato de salida con 2 decimales.
+- Errores de apertura de archivo detienen el programa con mensaje claro
+  y código de salida distinto de 0.
 
-## Sample Structure
+## Compilación y ejecución
 
-```fortran
-PROGRAM METRICS_CALCULATION
-  IMPLICIT NONE
-  
-  ! TODO: Define constants
-  ! INTEGER, PARAMETER :: MAX_RECORDS = 10000
-  ! INTEGER, PARAMETER :: MAX_STATIONS = 100
-  
-  ! TODO: Define data types
-  ! TYPE :: METRIC_RECORD
-  !   CHARACTER(LEN=20) :: station
-  !   REAL(KIND=8) :: temperature
-  !   ...
-  ! END TYPE METRIC_RECORD
-  
-  ! TODO: Implement main logic
-  !   1. Open data/datos_normalizados.csv
-  !   2. Read all records
-  !   3. Group by station
-  !   4. Calculate metrics
-  !   5. Write data/metricas.csv
-  !   6. Close files
-  
-  ! TODO: Add subroutines
-  !   - SUBROUTINE read_normalized_data()
-  !   - SUBROUTINE aggregate_by_station()
-  !   - SUBROUTINE calculate_statistics()
-  !   - SUBROUTINE write_metrics()
-  
-END PROGRAM METRICS_CALCULATION
+Igual que en `PolyFlow.bat` / `run_pipeline.sh` (desde la raíz del repo):
+
+```batch
+gfortran -std=f2008 -Wall -Wextra -O2 -o bin\polyflow_metrics.exe fortran\procesamiento.f90
+bin\polyflow_metrics.exe
 ```
 
----
-
-## Compilation & Execution
-
-### Compilation (Future)
 ```bash
-gfortran -o fortran/bin/metrics fortran/procesamiento.f90
+gfortran -std=f2008 -Wall -Wextra -O2 -o bin/polyflow_metrics fortran/procesamiento.f90
+./bin/polyflow_metrics
 ```
 
-### Execution (Future)
-```bash
-./fortran/bin/metrics
-```
+## Referencias
 
----
-
-## References
-
-- [Data Contract](../docs/DATA_CONTRACT.md) - Input/output specifications
-- [Architecture](../docs/ARCHITECTURE.md) - Pipeline overview
-- Test data: `tests/datos_prueba.csv`
+- [DATA_CONTRACT.md](../docs/DATA_CONTRACT.md) — secciones 2-3
+- [ARCHITECTURE.md](../docs/ARCHITECTURE.md) — vista general del pipeline
+- Datos de prueba: `tests/datos_prueba.csv`

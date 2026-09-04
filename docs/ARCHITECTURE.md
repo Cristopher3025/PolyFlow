@@ -219,7 +219,7 @@ All conversions are deterministic; same input always produces same output.
 
 ### Phase 5: Deployment & Documentation
 - [ ] Verify all README files updated
-- [ ] Create troubleshooting guide
+- [x] Create troubleshooting guide
 - [ ] Prepare demonstration materials
 
 ---
@@ -303,4 +303,3 @@ PolyFlow.bat    # Single point of entry
 - [Grammar Specification](GRAMMAR.md) - Rule evaluation syntax
 - [Checksum Algorithm](CHECKSUM.md) - MIPS verification method
 - [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions
-

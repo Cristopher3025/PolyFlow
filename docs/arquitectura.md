@@ -1,3 +1,3 @@
 # Arquitectura
 
-input/datos_crudos.csv -> BASIC-256 -> output/datos_normalizados.csv -> FORTRAN -> output/metricas.csv -> JAVA + input/reglas.txt -> output/alertas.csv -> MIPS -> output/checksum.txt
+data/datos_crudos.csv -> BASIC-256 -> data/datos_normalizados.csv -> FORTRAN -> data/metricas.csv -> COBOL + input/reglas.txt -> data/alertas.csv + data/secuencia.txt -> MIPS -> data/checksum.txt

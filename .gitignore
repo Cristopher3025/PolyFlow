@@ -36,6 +36,8 @@ basic256/*.exe
 *.dylib
 *.class
 *.jar
+# Vendored MARS simulator (required by the MIPS stage; original site is offline)
+!tools/Mars4_5.jar
 *.pyc
 *.pyo
 __pycache__/
