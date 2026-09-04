@@ -1,2 +1,0 @@
-# Reglas de ejemplo
-# REGLA TEMPERATURA > 35 -> ALERTA_CALOR
