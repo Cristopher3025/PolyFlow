@@ -1,0 +1,3 @@
+# GitHub Linguist: these files contain BASIC-256 code.
+PolyFlow.bat linguist-language=BASIC
+basic256/*.kbs linguist-language=BASIC
