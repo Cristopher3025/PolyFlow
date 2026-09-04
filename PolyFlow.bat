@@ -1,345 +1,160 @@
-@REM ========================================================================
-@REM PolyFlow - Master Pipeline Orchestrator
-@REM 
-@REM Purpose:
-@REM   Single entry point to execute the complete environmental data
-@REM   processing pipeline across 4 programming languages
-@REM 
-@REM Pipeline Flow:
-@REM   BASIC-256 → FORTRAN → COBOL → MIPS
-@REM 
-@REM Output:
-@REM   data/checksum.txt (final verification file)
-@REM 
-@REM Usage:
-@REM   PolyFlow.bat
-@REM   (Double-click to run)
-@REM 
-@REM Author: Cris
-@REM Status: Template/Scaffold - Implementation pending
-@REM ========================================================================
-
 @ECHO OFF
-SETLOCAL ENABLEDELAYEDEXPANSION
+SETLOCAL EnableExtensions EnableDelayedExpansion
 
 REM ========================================================================
-REM Configuration
+REM PolyFlow - Master Pipeline Orchestrator (Windows)
+REM BASIC-256 -> FORTRAN -> COBOL -> MIPS
 REM ========================================================================
 
-SET "PIPELINE_NAME=PolyFlow Environmental Data Processing Pipeline"
-SET "VERSION=1.0"
-SET "LOG_FILE=pipeline.log"
+CD /D "%~dp0"
+
+IF EXIST "scripts\config.bat" CALL "scripts\config.bat"
+
 SET "DATA_DIR=data"
-SET "EXIT_CODE=0"
+SET "BIN_DIR=bin"
 
-REM ========================================================================
-REM Display Header
-REM ========================================================================
+IF NOT EXIST "%BIN_DIR%" MKDIR "%BIN_DIR%"
 
-CLS
+IF NOT DEFINED BASIC256_EXE SET "BASIC256_EXE=basic256"
+IF NOT DEFINED FORTRAN_COMPILER SET "FORTRAN_COMPILER=gfortran"
+IF NOT DEFINED COBOL_COMPILER SET "COBOL_COMPILER=cobc"
+
+IF NOT EXIST "%DATA_DIR%\datos_crudos.csv" GOTO :ERROR_INPUT
+IF NOT EXIST "basic256\limpieza.kbs" GOTO :ERROR_SOURCE
+IF NOT EXIST "fortran\procesamiento.f90" GOTO :ERROR_SOURCE
+IF NOT EXIST "cobol\rules_engine.cob" GOTO :ERROR_SOURCE
+IF NOT EXIST "mips\checksum.asm" GOTO :ERROR_SOURCE
+IF NOT EXIST "input\rules.txt" GOTO :ERROR_SOURCE
+
+DEL /Q "%DATA_DIR%\datos_normalizados.csv" "%DATA_DIR%\metricas.csv" "%DATA_DIR%\alertas.csv" "%DATA_DIR%\secuencia.txt" "%DATA_DIR%\checksum.txt" 2>NUL
+
 ECHO.
 ECHO ========================================================================
-ECHO %PIPELINE_NAME%
-ECHO Version: %VERSION%
-ECHO ========================================================================
-ECHO.
-ECHO This script will execute all 4 processing stages in sequence.
-ECHO Each stage reads output from previous stage as input.
-ECHO.
-ECHO Pipeline:
-ECHO   [1/4] BASIC-256  : Data cleaning and validation
-ECHO   [2/4] FORTRAN    : Statistical metrics calculation
-ECHO   [3/4] COBOL      : Rules engine and alert generation
-ECHO   [4/4] MIPS       : Checksum integrity verification
-ECHO.
-ECHO Started: %DATE% %TIME%
+ECHO PolyFlow Environmental Data Processing Pipeline
 ECHO ========================================================================
 ECHO.
 
-REM Clear log file
-DEL /Q "%LOG_FILE%" 2>NUL
+ECHO [1/4] BASIC-256 - Data Cleaning and Validation
+ECHO ==========================================
 
-REM ========================================================================
-REM Pre-Flight Checks
-REM ========================================================================
+PUSHD "basic256"
+"%BASIC256_EXE%" -s limpieza.kbs
+SET "BASIC_EXIT=!ERRORLEVEL!"
+POPD
 
-ECHO Performing pre-flight checks...
+IF NOT "!BASIC_EXIT!"=="0" GOTO :ERROR_STAGE
 
-IF NOT EXIST "scripts\config.bat" (
-  ECHO [ERROR] Configuration script not found: scripts\config.bat
-  ECHO Please run scripts\config.bat first to configure tool paths
-  SET "EXIT_CODE=1"
-  GOTO :ERROR_EXIT
-)
+IF NOT EXIST "%DATA_DIR%\datos_normalizados.csv" GOTO :ERROR_OUTPUT
 
-IF NOT EXIST "%DATA_DIR%" (
-  ECHO [ERROR] Data directory not found: %DATA_DIR%
-  SET "EXIT_CODE=1"
-  GOTO :ERROR_EXIT
-)
-
-IF NOT EXIST "%DATA_DIR%\datos_crudos.csv" (
-  ECHO [ERROR] Input file not found: %DATA_DIR%\datos_crudos.csv
-  SET "EXIT_CODE=1"
-  GOTO :ERROR_EXIT
-)
-
-ECHO [OK] Pre-flight checks passed
+ECHO [OK] BASIC-256 completed.
 ECHO.
 
-REM ========================================================================
-REM Stage 1: BASIC-256 - Data Cleaning & Validation
-REM ========================================================================
+ECHO [2/4] FORTRAN - Metrics Calculation
+ECHO ==========================================
 
-ECHO ========================================================================
-ECHO [Stage 1/4] BASIC-256 - Data Cleaning & Validation
-ECHO ========================================================================
+"%FORTRAN_COMPILER%" -std=f2008 -Wall -Wextra -O2 ^
+    -o "%BIN_DIR%\polyflow_metrics.exe" ^
+    fortran\procesamiento.f90
 
-ECHO   Input:    %DATA_DIR%\datos_crudos.csv
-ECHO   Output:   %DATA_DIR%\datos_normalizados.csv
-ECHO   Status:   TODO - Implement BASIC-256 execution
+IF ERRORLEVEL 1 GOTO :ERROR_STAGE
+
+"%BIN_DIR%\polyflow_metrics.exe"
+
+IF ERRORLEVEL 1 GOTO :ERROR_STAGE
+IF NOT EXIST "%DATA_DIR%\metricas.csv" GOTO :ERROR_OUTPUT
+
+ECHO [OK] FORTRAN completed.
 ECHO.
 
-REM TODO: Implement BASIC-256 execution
-REM 
-REM Expected command pattern:
-REM   - Detect BASIC-256 installation
-REM   - Compile/interpret basic256\limpieza.kbs
-REM   - Verify output file created: data\datos_normalizados.csv
-REM   - Check exit code for errors
-REM 
-REM Example (to be completed):
-REM   IF NOT DEFINED BASIC256_EXE (
-REM     ECHO [ERROR] BASIC-256 not configured. Run scripts\config.bat
-REM     SET "EXIT_CODE=1"
-REM     GOTO :ERROR_EXIT
-REM   )
-REM
-REM   ECHO Executing BASIC-256...
-REM   !BASIC256_EXE! basic256\limpieza.kbs
-REM   IF ERRORLEVEL 1 (
-REM     ECHO [ERROR] BASIC-256 failed
-REM     SET "EXIT_CODE=1"
-REM     GOTO :ERROR_EXIT
-REM   )
-REM
+ECHO [3/4] COBOL - Rules Engine and Alert Generation
+ECHO ==========================================
 
-REM TODO: Verify output file exists
-REM IF NOT EXIST "%DATA_DIR%\datos_normalizados.csv" (
-REM   ECHO [ERROR] Output file not created: %DATA_DIR%\datos_normalizados.csv
-REM   SET "EXIT_CODE=1"
-REM   GOTO :ERROR_EXIT
-REM )
+"%COBOL_COMPILER%" -x -free -Wall ^
+    -o "%BIN_DIR%\polyflow_rules.exe" ^
+    cobol\rules_engine.cob
 
-ECHO [SUCCESS] BASIC-256 stage completed
+IF ERRORLEVEL 1 GOTO :ERROR_STAGE
+
+"%BIN_DIR%\polyflow_rules.exe"
+
+IF ERRORLEVEL 1 GOTO :ERROR_STAGE
+IF NOT EXIST "%DATA_DIR%\alertas.csv" GOTO :ERROR_OUTPUT
+IF NOT EXIST "%DATA_DIR%\secuencia.txt" GOTO :ERROR_OUTPUT
+
+ECHO [OK] COBOL completed.
 ECHO.
 
-REM ========================================================================
-REM Stage 2: FORTRAN - Metrics Calculation
-REM ========================================================================
+ECHO [4/4] MIPS - Checksum Integrity Verification
+ECHO ==========================================
 
-ECHO ========================================================================
-ECHO [Stage 2/4] FORTRAN - Metrics Calculation
-ECHO ========================================================================
+IF DEFINED MIPS_MARS_JAR GOTO :MARS
+IF DEFINED MIPS_SIMULATOR GOTO :QTSPIM
 
-ECHO   Input:    %DATA_DIR%\datos_normalizados.csv
-ECHO   Output:   %DATA_DIR%\metricas.csv
-ECHO   Status:   TODO - Implement FORTRAN execution
-ECHO.
+ECHO [ERROR] Configure MIPS_MARS_JAR or MIPS_SIMULATOR in scripts\config.bat
+GOTO :ERROR_STAGE
 
-REM TODO: Implement FORTRAN execution
-REM 
-REM Expected command pattern:
-REM   - Compile FORTRAN source: fortran\procesamiento.f90
-REM   - Output binary to: fortran\bin\metrics.exe
-REM   - Run binary with proper input
-REM   - Verify output file created: data\metricas.csv
-REM 
-REM Example (to be completed):
-REM   ECHO Compiling FORTRAN...
-REM   gfortran -o fortran\bin\metrics fortran\procesamiento.f90
-REM   IF ERRORLEVEL 1 (
-REM     ECHO [ERROR] FORTRAN compilation failed
-REM     SET "EXIT_CODE=1"
-REM     GOTO :ERROR_EXIT
-REM   )
-REM
-REM   ECHO Running FORTRAN metrics...
-REM   fortran\bin\metrics
-REM   IF ERRORLEVEL 1 (
-REM     ECHO [ERROR] FORTRAN execution failed
-REM     SET "EXIT_CODE=1"
-REM     GOTO :ERROR_EXIT
-REM   )
-REM
+:MARS
 
-REM TODO: Verify output file exists
-REM IF NOT EXIST "%DATA_DIR%\metricas.csv" (
-REM   ECHO [ERROR] Output file not created: %DATA_DIR%\metricas.csv
-REM   SET "EXIT_CODE=1"
-REM   GOTO :ERROR_EXIT
-REM )
+IF NOT EXIST "%MIPS_MARS_JAR%" GOTO :ERROR_MIPS_CONFIG
 
-ECHO [SUCCESS] FORTRAN stage completed
-ECHO.
+java -jar "%MIPS_MARS_JAR%" nc mips\checksum.asm
 
-REM ========================================================================
-REM Stage 3: COBOL - Rules Engine & Alert Generation
-REM ========================================================================
+IF ERRORLEVEL 1 GOTO :ERROR_STAGE
 
-ECHO ========================================================================
-ECHO [Stage 3/4] COBOL - Rules Engine ^& Alert Generation
-ECHO ========================================================================
+GOTO :CHECK_MIPS_OUTPUT
 
-ECHO   Input:    %DATA_DIR%\metricas.csv + input\reglas.txt
-ECHO   Output:   %DATA_DIR%\alertas.csv + %DATA_DIR%\secuencia.txt
-ECHO   Status:   TODO - Implement COBOL execution
-ECHO.
+:QTSPIM
 
-REM TODO: Implement COBOL execution
-REM 
-REM Expected command pattern:
-REM   - Compile COBOL source: cobol\reglas.cob
-REM   - Output binary to: cobol\bin\reglas.exe
-REM   - Run binary
-REM   - Verify both output files created:
-REM       - data\alertas.csv
-REM       - data\secuencia.txt
-REM 
-REM Example (to be completed):
-REM   ECHO Compiling COBOL...
-REM   cobc -x -free -o cobol\bin\reglas.exe cobol\reglas.cob
-REM   IF ERRORLEVEL 1 (
-REM     ECHO [ERROR] COBOL compilation failed
-REM     SET "EXIT_CODE=1"
-REM     GOTO :ERROR_EXIT
-REM   )
-REM
-REM   ECHO Running COBOL rules engine...
-REM   cobol\bin\reglas.exe
-REM   IF ERRORLEVEL 1 (
-REM     ECHO [ERROR] COBOL execution failed
-REM     SET "EXIT_CODE=1"
-REM     GOTO :ERROR_EXIT
-REM   )
-REM
+"%MIPS_SIMULATOR%" -file mips\checksum.asm
 
-REM TODO: Verify output files exist
-REM IF NOT EXIST "%DATA_DIR%\alertas.csv" (
-REM   ECHO [ERROR] Output file not created: %DATA_DIR%\alertas.csv
-REM   SET "EXIT_CODE=1"
-REM   GOTO :ERROR_EXIT
-REM )
-REM IF NOT EXIST "%DATA_DIR%\secuencia.txt" (
-REM   ECHO [ERROR] Output file not created: %DATA_DIR%\secuencia.txt
-REM   SET "EXIT_CODE=1"
-REM   GOTO :ERROR_EXIT
-REM )
+IF ERRORLEVEL 1 GOTO :ERROR_STAGE
 
-ECHO [SUCCESS] COBOL stage completed
-ECHO.
+GOTO :CHECK_MIPS_OUTPUT
 
-REM ========================================================================
-REM Stage 4: MIPS - Checksum Verification
-REM ========================================================================
+:CHECK_MIPS_OUTPUT
 
-ECHO ========================================================================
-ECHO [Stage 4/4] MIPS - Checksum Verification
-ECHO ========================================================================
+IF NOT EXIST "%DATA_DIR%\checksum.txt" GOTO :ERROR_OUTPUT
 
-ECHO   Input:    %DATA_DIR%\alertas.csv + %DATA_DIR%\secuencia.txt
-ECHO   Output:   %DATA_DIR%\checksum.txt
-ECHO   Status:   TODO - Implement MIPS execution
-ECHO.
+FINDSTR /R /X /C:"CHECKSUM=[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]" ^
+    "%DATA_DIR%\checksum.txt" >NUL
 
-REM TODO: Implement MIPS execution
-REM 
-REM Expected command pattern:
-REM   - Load MIPS assembly: mips\checksum.asm
-REM   - Run in simulator (MARS or QtSPIM)
-REM   - Verify output file created: data\checksum.txt
-REM 
-REM Example (to be completed):
-REM   ECHO Running MIPS simulation...
-REM   IF DEFINED MIPS_MARS_JAR (
-REM     java -jar !MIPS_MARS_JAR! mips\checksum.asm
-REM   ) ELSE IF DEFINED MIPS_SIMULATOR (
-REM     !MIPS_SIMULATOR! mips\checksum.asm
-REM   ) ELSE (
-REM     ECHO [ERROR] MIPS simulator not configured
-REM     SET "EXIT_CODE=1"
-REM     GOTO :ERROR_EXIT
-REM   )
-REM   IF ERRORLEVEL 1 (
-REM     ECHO [ERROR] MIPS execution failed
-REM     SET "EXIT_CODE=1"
-REM     GOTO :ERROR_EXIT
-REM   )
-REM
+IF ERRORLEVEL 1 GOTO :ERROR_OUTPUT
 
-REM TODO: Verify output file exists
-REM IF NOT EXIST "%DATA_DIR%\checksum.txt" (
-REM   ECHO [ERROR] Output file not created: %DATA_DIR%\checksum.txt
-REM   SET "EXIT_CODE=1"
-REM   GOTO :ERROR_EXIT
-REM )
-
-ECHO [SUCCESS] MIPS stage completed
-ECHO.
-
-REM ========================================================================
-REM Pipeline Completion Summary
-REM ========================================================================
-
-ECHO ========================================================================
-ECHO Pipeline Completion Summary
-ECHO ========================================================================
-ECHO.
-
-ECHO Expected Output Files:
-ECHO   [*] %DATA_DIR%\datos_normalizados.csv   (from BASIC-256)
-ECHO   [*] %DATA_DIR%\metricas.csv              (from FORTRAN)
-ECHO   [*] %DATA_DIR%\alertas.csv               (from COBOL)
-ECHO   [*] %DATA_DIR%\secuencia.txt             (from COBOL)
-ECHO   [*] %DATA_DIR%\checksum.txt              (from MIPS)
-ECHO.
-
-ECHO Verification Checklist:
-ECHO   [ ] All output files exist
-ECHO   [ ] Output files are not empty
-ECHO   [ ] Output files have correct format
-ECHO   [ ] Checksum file contains valid value
+ECHO [OK] MIPS completed.
 ECHO.
 
 ECHO ========================================================================
-ECHO PIPELINE EXECUTION COMPLETED SUCCESSFULLY
-ECHO Completed: %DATE% %TIME%
+ECHO PIPELINE COMPLETED SUCCESSFULLY
 ECHO ========================================================================
-ECHO.
 
-GOTO :NORMAL_EXIT
-
-REM ========================================================================
-REM Error Handler
-REM ========================================================================
-
-:ERROR_EXIT
-ECHO.
-ECHO ========================================================================
-ECHO PIPELINE EXECUTION FAILED
-ECHO Error Code: %EXIT_CODE%
-ECHO ========================================================================
-ECHO.
-ECHO Troubleshooting:
-ECHO   1. Check scripts\config.bat for correct tool paths
-ECHO   2. Verify all source files exist (.kbs, .f90, .cob, .asm)
-ECHO   3. Test each tool individually before running pipeline
-ECHO   4. Check pipeline.log for detailed error messages
-ECHO.
-
-ENDLOCAL
-EXIT /B %EXIT_CODE%
-
-:NORMAL_EXIT
-ENDLOCAL
 EXIT /B 0
+
+
+:ERROR_INPUT
+
+ECHO [ERROR] Missing data\datos_crudos.csv
+EXIT /B 1
+
+
+:ERROR_SOURCE
+
+ECHO [ERROR] A required source/configuration file is missing.
+EXIT /B 1
+
+
+:ERROR_OUTPUT
+
+ECHO [ERROR] An expected stage output was not generated correctly.
+EXIT /B 1
+
+
+:ERROR_MIPS_CONFIG
+
+ECHO [ERROR] MARS JAR not found: %MIPS_MARS_JAR%
+EXIT /B 1
+
+
+:ERROR_STAGE
+
+ECHO [ERROR] Pipeline stage failed. Execution aborted.
+EXIT /B 1

@@ -14,7 +14,6 @@
 @REM ========================================================================
 
 @ECHO OFF
-SETLOCAL ENABLEDELAYEDEXPANSION
 
 REM ========================================================================
 REM STEP 1: Set BASIC-256 Configuration
@@ -29,7 +28,7 @@ REM TODO: Update this path to your BASIC-256 installation
 REM
 
 SET "BASIC256_HOME="
-SET "BASIC256_EXE="
+IF NOT DEFINED BASIC256_EXE SET "BASIC256_EXE=basic256"
 
 IF DEFINED BASIC256_EXE (
   ECHO [CONFIG] BASIC-256: !BASIC256_EXE!
@@ -47,7 +46,7 @@ REM
 REM Test: In command prompt, type: gfortran --version
 REM 
 
-SET "FORTRAN_COMPILER=gfortran"
+IF NOT DEFINED FORTRAN_COMPILER SET "FORTRAN_COMPILER=gfortran"
 SET "FORTRAN_FLAGS=-o fortran\bin\metrics"
 SET "FORTRAN_SOURCE=fortran\procesamiento.f90"
 
@@ -62,10 +61,10 @@ REM
 REM Test: In command prompt, type: cobc --version
 REM 
 
-SET "COBOL_COMPILER=cobc"
+IF NOT DEFINED COBOL_COMPILER SET "COBOL_COMPILER=cobc"
 SET "COBOL_FLAGS=-x -free"
-SET "COBOL_SOURCE=cobol\reglas.cob"
-SET "COBOL_OUTPUT=cobol\bin\reglas.exe"
+SET "COBOL_SOURCE=cobol\rules_engine.cob"
+SET "COBOL_OUTPUT=bin\polyflow_rules.exe"
 
 ECHO [CONFIG] COBOL Compiler: !COBOL_COMPILER!
 
@@ -80,8 +79,8 @@ REM   - MARS: http://courses.missouristate.edu/kaseej/mars/
 REM   - QtSPIM: http://spimsimulator.org/
 REM 
 
-SET "MIPS_SIMULATOR="
-SET "MIPS_MARS_JAR="
+IF NOT DEFINED MIPS_SIMULATOR SET "MIPS_SIMULATOR="
+IF NOT DEFINED MIPS_MARS_JAR SET "MIPS_MARS_JAR="
 
 REM For MARS (Java-based):
 REM SET "MIPS_MARS_JAR=C:\path\to\Mars.jar"
@@ -123,8 +122,8 @@ IF NOT EXIST "fortran\procesamiento.f90" (
   ECHO [WARNING] FORTRAN source not found: fortran\procesamiento.f90
 )
 
-IF NOT EXIST "cobol\reglas.cob" (
-  ECHO [WARNING] COBOL source not found: cobol\reglas.cob
+IF NOT EXIST "cobol\rules_engine.cob" (
+  ECHO [WARNING] COBOL source not found: cobol\rules_engine.cob
 )
 
 IF NOT EXIST "mips\checksum.asm" (
@@ -153,5 +152,3 @@ ECHO   1. Verify all tool paths above are correct
 ECHO   2. Test each tool individually (compile, run)
 ECHO   3. Ensure all source files are in place
 ECHO.
-
-ENDLOCAL

@@ -115,7 +115,7 @@ PolyFlow is an integrated environmental data processing system that demonstrates
   - Validate alert consistency
 - **Architecture**: Pattern-based rule evaluation (not object-oriented)
 - **Development Environment**: VS Code with GnuCOBOL compiler
-- **File Location**: `cobol/reglas.cob`
+- **File Location**: `cobol/rules_engine.cob`
 
 ### Stage 4: MIPS (Integrity Verification)
 - **Responsible**: Justin

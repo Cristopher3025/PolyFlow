@@ -245,7 +245,7 @@ Test Case 3: Compound conditions
 
 ### Compilation (Future)
 ```batch
-cobc -x -free -o cobol/bin/reglas.exe cobol/reglas.cob
+cobc -x -free -o bin/polyflow_rules.exe cobol/rules_engine.cob
 ```
 
 ### Execution (Future)

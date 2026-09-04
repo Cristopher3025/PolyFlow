@@ -23,7 +23,7 @@ The PolyFlow project infrastructure has been successfully restructured and prepa
 - **docs/CHECKSUM.md** - Algorithm specification for integrity verification
 
 ### 3. Code Skeletons ✅
-- **cobol/reglas.cob** - COBOL rules engine template with comments and structure
+- **cobol/rules_engine.cob** - COBOL rules engine template with comments and structure
 - **fortran/procesamiento.f90** - FORTRAN metrics calculation template
 - **mips/checksum.asm** - MIPS assembly skeleton with syscall placeholders
 - **basic256/limpieza.kbs** - BASIC-256 placeholder (to be developed in IDE)
@@ -93,8 +93,8 @@ BASIC-256 → FORTRAN → COBOL → MIPS
 1. Review `docs/DATA_CONTRACT.md` sections 3-5
 2. Review `docs/GRAMMAR.md` rule syntax
 3. Review `cobol/README.md` development guide
-4. Implement `cobol/reglas.cob`
-5. Compile: `cobc -x -free -o cobol/bin/reglas.exe cobol/reglas.cob`
+4. Implement `cobol/rules_engine.cob`
+5. Compile: `cobc -x -free -o bin/polyflow_rules.exe cobol/rules_engine.cob`
 6. Test with sample metrics
 7. Verify alerts.csv and secuencia.txt format
 8. Commit to git repository
@@ -206,7 +206,7 @@ PolyFlow_Estructura/
 │   └── README.md                   ← Development guide
 │
 ├── cobol/
-│   ├── reglas.cob                  ← COBOL source (skeleton)
+│   ├── rules_engine.cob            ← COBOL source (skeleton)
 │   ├── bin/                        ← Compiled binaries
 │   └── README.md                   ← Development guide
 │

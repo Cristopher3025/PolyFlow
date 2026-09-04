@@ -33,7 +33,7 @@ Each team member works independently:
 ```
 Cris:     BASIC-256 IDE → basic256/limpieza.kbs
 Anthony:  VS Code + FORTRAN → fortran/procesamiento.f90
-Justin:   VS Code + COBOL → cobol/reglas.cob
+Justin:   VS Code + COBOL → cobol/rules_engine.cob
 Justin:   VS Code + MIPS → mips/checksum.asm
 ```
 
@@ -69,7 +69,7 @@ PolyFlow/
 │   └── README.md                ← Development guide
 │
 ├── cobol/                       ← Stage 3: Rules Engine
-│   ├── reglas.cob               ← COBOL source code
+│   ├── rules_engine.cob         ← COBOL source code
 │   ├── bin/                     ← Compiled binary
 │   └── README.md                ← Development guide
 │
