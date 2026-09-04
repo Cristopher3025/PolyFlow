@@ -1,203 +1,298 @@
-; ========================================================================
-; PolyFlow - Checksum Verification Stage
-; Language: MIPS Assembly
-; Author: Justin
-; Purpose: Compute integrity checksum over alert and sequence files
-;
-; Input:  data/alertas.csv + data/secuencia.txt
-; Output: data/checksum.txt
-;
-; Status: Skeleton - TODO: Implement full logic
-; ========================================================================
+.data
 
-; ========================================================================
-; Register Usage
-; ========================================================================
-; $v0: Return value / syscall results
-; $a0-$a3: Arguments
-; $t0-$t9: Temporary values
-; $s0-$s7: Saved values
-;
-; TODO: Define detailed register allocation as implementation proceeds
-; ========================================================================
+alertsPath:
+    .asciiz "data/alerts.csv"
+
+sequencePath:
+    .asciiz "data/sequence.txt"
+
+checksumPath:
+    .asciiz "data/checksum.txt"
+
+readBuffer:
+    .space 4096
+
+outputBuffer:
+    .space 32
+
+errorOpenInput:
+    .asciiz "ERROR: Could not open input file.\n"
+
+errorOpenOutput:
+    .asciiz "ERROR: Could not create checksum file.\n"
+
+successMessage:
+    .asciiz "MIPS checksum generated successfully.\n"
+
+newline:
+    .asciiz "\n"
+
+hexDigits:
+    .asciiz "0123456789ABCDEF"
+
 
 .text
 .globl main
 
+
+# ============================================================
+# Main
+# ============================================================
+
 main:
-    # ====================================================================
-    # TODO: Initialize program
-    # ====================================================================
-    # Load program entry message
-    # Load file paths into memory
-    # Initialize buffers for file data
-    
-    # ====================================================================
-    # TODO: Step 1 - Read alertas.csv
-    # ====================================================================
-    # Syscall to open file
-    # Syscall to read file contents into buffer
-    # Track byte count read
-    
-    # ====================================================================
-    # TODO: Step 2 - Read secuencia.txt
-    # ====================================================================
-    # Syscall to open file
-    # Syscall to read file contents into buffer
-    # Track byte count read
-    
-    # ====================================================================
-    # TODO: Step 3 - Calculate checksum
-    # ====================================================================
-    # Call checksum subroutine
-    # Pass combined byte stream
-    # Receive checksum value in $v0
-    
-    # ====================================================================
-    # TODO: Step 4 - Format result
-    # ====================================================================
-    # Convert checksum to hexadecimal
-    # Format as "CHECKSUM=XXXXXXXX"
-    
-    # ====================================================================
-    # TODO: Step 5 - Write output file
-    # ====================================================================
-    # Syscall to create/open data/checksum.txt
-    # Syscall to write formatted checksum
-    # Syscall to close file
-    
-    # ====================================================================
-    # TODO: Step 6 - Exit program
-    # ====================================================================
-    li $v0, 10    # Syscall 10: exit
+
+    li   $s0, 0
+
+    # Process alerts.csv
+    la   $a0, alertsPath
+    jal  process_file
+
+    # Process sequence.txt
+    la   $a0, sequencePath
+    jal  process_file
+
+    # Build CHECKSUM=XXXXXXXX
+    jal  build_output
+
+    # Write checksum.txt
+    jal  write_checksum_file
+
+    # Success message
+    li   $v0, 4
+    la   $a0, successMessage
     syscall
 
-# ========================================================================
-# SUBROUTINE: read_file
-# Purpose: Read file contents into memory
-# Arguments: 
-#   $a0 = file path (string)
-#   $a1 = destination buffer
-#   $a2 = buffer size
-# Returns:
-#   $v0 = bytes read
-#   $v1 = error code (0 = success)
-# ========================================================================
+    # Exit
+    li   $v0, 10
+    syscall
 
-read_file:
-    # TODO: Implement file reading
-    # 1. Open file using syscall 13
-    # 2. Read contents using syscall 14
-    # 3. Close file using syscall 16
-    # 4. Return byte count and status
-    
-    jr $ra
 
-# ========================================================================
-# SUBROUTINE: calculate_checksum
-# Purpose: Compute integrity checksum over byte stream
-# Arguments:
-#   $a0 = buffer pointer (byte array)
-#   $a1 = buffer size (bytes)
-# Returns:
-#   $v0 = checksum value (32-bit)
-# Algorithm: TODO - Choose XOR, SUM, or CRC-32
-# ========================================================================
+# ============================================================
+# process_file
+#
+# Input:
+#   $a0 = address of file path
+#
+# Uses:
+#   $s0 = accumulated XOR checksum
+#
+# Reads the file in chunks and applies XOR to every byte.
+# ============================================================
 
-calculate_checksum:
-    # TODO: Implement checksum algorithm
-    # 
-    # Option 1: XOR Checksum (Simplest)
-    #   checksum = 0x00000000
-    #   for each byte b in buffer:
-    #     checksum = checksum XOR b
-    #   return checksum
-    #
-    # Option 2: Sum Checksum
-    #   checksum = 0x00000000
-    #   for each byte b in buffer:
-    #     checksum = (checksum + b) AND 0xFFFFFFFF
-    #   return checksum
-    #
-    # Option 3: CRC-32 (More complex)
-    #   Use standard CRC-32 polynomial
-    #   See docs/CHECKSUM.md for details
-    
-    jr $ra
+process_file:
 
-# ========================================================================
-# SUBROUTINE: convert_to_hex
-# Purpose: Convert 32-bit integer to 8-digit hex string
-# Arguments:
-#   $a0 = value to convert
-#   $a1 = destination buffer (string)
-# Returns:
-#   $v0 = string length
-# ========================================================================
+    addi $sp, $sp, -12
+    sw   $ra, 8($sp)
+    sw   $s1, 4($sp)
+    sw   $s2, 0($sp)
 
-convert_to_hex:
-    # TODO: Implement hexadecimal conversion
-    # 1. Extract each 4-bit nibble (most significant first)
-    # 2. Convert to ASCII hex digit (0-9, A-F uppercase)
-    # 3. Store in destination buffer
-    # 4. Return length
-    
-    jr $ra
+    # Open file for reading
+    li   $v0, 13
+    li   $a1, 0
+    li   $a2, 0
+    syscall
 
-# ========================================================================
-# SUBROUTINE: write_file
-# Purpose: Write data to output file
-# Arguments:
-#   $a0 = file path (string)
-#   $a1 = data buffer (string)
-#   $a2 = buffer size
-# Returns:
-#   $v0 = bytes written
-#   $v1 = error code (0 = success)
-# ========================================================================
+    bltz $v0, input_file_error
 
-write_file:
-    # TODO: Implement file writing
-    # 1. Create/open file using syscall 13 (write mode)
-    # 2. Write contents using syscall 15
-    # 3. Close file using syscall 16
-    # 4. Return bytes written and status
-    
-    jr $ra
+    move $s1, $v0
 
-# ========================================================================
-# DATA SECTION
-# ========================================================================
 
-.data
+read_file_loop:
 
-# File paths
-input_file_alerts:    .asciiz "data/alertas.csv"
-input_file_sequence:  .asciiz "data/secuencia.txt"
-output_file_checksum: .asciiz "data/checksum.txt"
+    # Read up to 4096 bytes
+    li   $v0, 14
+    move $a0, $s1
+    la   $a1, readBuffer
+    li   $a2, 4096
+    syscall
 
-# Buffers for file data
-# TODO: Allocate appropriately based on expected file sizes
-buffer_alerts:    .space 10000    # 10KB buffer for alerts
-buffer_sequence:  .space 1000     # 1KB buffer for sequence
-buffer_output:    .space 100      # Small buffer for output
+    # Negative value = read error
+    bltz $v0, input_file_error_close
 
-# Messages
-msg_start:        .asciiz "PolyFlow - MIPS Checksum Verification\n"
-msg_reading:      .asciiz "Reading input files...\n"
-msg_computing:    .asciiz "Computing checksum...\n"
-msg_writing:      .asciiz "Writing output...\n"
-msg_success:      .asciiz "Checksum verification completed successfully\n"
-msg_error:        .asciiz "ERROR: Processing failed\n"
+    # Zero bytes = end of file
+    beqz $v0, close_input_file
 
-; ========================================================================
-; NOTES FOR DEVELOPER
-; ========================================================================
-; 1. Start with simple XOR checksum, upgrade to CRC-32 if needed
-; 2. Test algorithm with known inputs before full implementation
-; 3. Verify determinism: same input → same checksum every time
-; 4. Handle file I/O errors gracefully
-; 5. Test in MARS or QtSPIM simulator
-; 6. Document any syscall deviations specific to simulator
-; 7. See docs/CHECKSUM.md for algorithm details
-; ========================================================================
+    move $s2, $v0
+
+    la   $t0, readBuffer
+    li   $t1, 0
+
+
+xor_byte_loop:
+
+    beq  $t1, $s2, read_file_loop
+
+    lbu  $t2, 0($t0)
+
+    xor  $s0, $s0, $t2
+
+    addi $t0, $t0, 1
+    addi $t1, $t1, 1
+
+    j    xor_byte_loop
+
+
+close_input_file:
+
+    li   $v0, 16
+    move $a0, $s1
+    syscall
+
+    lw   $s2, 0($sp)
+    lw   $s1, 4($sp)
+    lw   $ra, 8($sp)
+    addi $sp, $sp, 12
+
+    jr   $ra
+
+
+input_file_error_close:
+
+    li   $v0, 16
+    move $a0, $s1
+    syscall
+
+
+input_file_error:
+
+    li   $v0, 4
+    la   $a0, errorOpenInput
+    syscall
+
+    li   $v0, 10
+    syscall
+
+
+# ============================================================
+# build_output
+#
+# Creates:
+#   CHECKSUM=XXXXXXXX
+#
+# The checksum is represented as 8 uppercase hexadecimal digits.
+# ============================================================
+
+build_output:
+
+    la   $t0, outputBuffer
+
+    # Write "CHECKSUM="
+    li   $t1, 'C'
+    sb   $t1, 0($t0)
+
+    li   $t1, 'H'
+    sb   $t1, 1($t0)
+
+    li   $t1, 'E'
+    sb   $t1, 2($t0)
+
+    li   $t1, 'C'
+    sb   $t1, 3($t0)
+
+    li   $t1, 'K'
+    sb   $t1, 4($t0)
+
+    li   $t1, 'S'
+    sb   $t1, 5($t0)
+
+    li   $t1, 'U'
+    sb   $t1, 6($t0)
+
+    li   $t1, 'M'
+    sb   $t1, 7($t0)
+
+    li   $t1, '='
+    sb   $t1, 8($t0)
+
+    # Start writing hexadecimal digits at position 9
+    addi $t0, $t0, 9
+
+    li   $t3, 28
+
+
+hex_loop:
+
+    bltz $t3, finish_output
+
+    srlv $t4, $s0, $t3
+    andi $t4, $t4, 0x000F
+
+    la   $t5, hexDigits
+    add  $t5, $t5, $t4
+
+    lbu  $t6, 0($t5)
+    sb   $t6, 0($t0)
+
+    addi $t0, $t0, 1
+    addi $t3, $t3, -4
+
+    j    hex_loop
+
+
+finish_output:
+
+    li   $t1, 10
+    sb   $t1, 0($t0)
+
+    addi $t0, $t0, 1
+
+    sb   $zero, 0($t0)
+
+    jr   $ra
+
+
+# ============================================================
+# write_checksum_file
+#
+# Writes exactly:
+#
+# CHECKSUM=XXXXXXXX\n
+# ============================================================
+
+write_checksum_file:
+
+    addi $sp, $sp, -8
+    sw   $ra, 4($sp)
+    sw   $s1, 0($sp)
+
+    # Open output file
+    li   $v0, 13
+    la   $a0, checksumPath
+    li   $a1, 1
+    li   $a2, 0
+    syscall
+
+    bltz $v0, output_file_error
+
+    move $s1, $v0
+
+    # Write 18 bytes:
+    # 9  -> CHECKSUM=
+    # 8  -> hexadecimal digits
+    # 1  -> newline
+    li   $v0, 15
+    move $a0, $s1
+    la   $a1, outputBuffer
+    li   $a2, 18
+    syscall
+
+    # Close file
+    li   $v0, 16
+    move $a0, $s1
+    syscall
+
+    lw   $s1, 0($sp)
+    lw   $ra, 4($sp)
+    addi $sp, $sp, 8
+
+    jr   $ra
+
+
+output_file_error:
+
+    li   $v0, 4
+    la   $a0, errorOpenOutput
+    syscall
+
+    li   $v0, 10
+    syscall
