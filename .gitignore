@@ -117,6 +117,9 @@ Desktop.ini
 test-output/
 temp/
 
+# Generated stress-test dataset (reproduce with tests\generar_datos.ps1)
+tests/datos_1000.csv
+
 # ========================================================================
 # Documentation Build Artifacts (if applicable)
 # ========================================================================

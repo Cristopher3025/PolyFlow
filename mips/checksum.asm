@@ -66,7 +66,7 @@ successMessage:
 #   $s1 = position
 #   $s2 = token buffer write pointer
 #   $s3 = token length
-#   $s4 = total bytes read
+#   $s4 = bytes in current chunk
 #   $s5 = read index
 #   $s6 = token buffer base
 # ============================================================
@@ -89,7 +89,14 @@ main:
     bltz $v0, open_input_error
     move $s7, $v0
 
-    # Read the whole file (small academic datasets)
+    # ------------------------------------------------------------
+    # Read the file in 4 KB chunks until EOF.
+    # Token state ($s2 write pointer, $s3 length) persists across
+    # chunks, so identifiers split at a chunk boundary are rebuilt
+    # correctly. Supports sequences of arbitrary length.
+    # ------------------------------------------------------------
+read_chunk:
+
     li   $v0, 14
     move $a0, $s7
     la   $a1, readBuffer
@@ -97,19 +104,15 @@ main:
     syscall
 
     bltz $v0, read_error
+    beqz $v0, eof_reached
     move $s4, $v0
 
-    # Close input file
-    li   $v0, 16
-    move $a0, $s7
-    syscall
-
-    # Tokenize and evaluate
+    # Tokenize and evaluate this chunk
     li   $s5, 0
 
 process_loop:
 
-    bge  $s5, $s4, process_done
+    bge  $s5, $s4, read_chunk
 
     la   $t1, readBuffer
     add  $t1, $t1, $s5
@@ -142,7 +145,12 @@ delimiter:
     sb   $zero, 0($s2)
     j    evaluate_token
 
-process_done:
+eof_reached:
+
+    # Close input file
+    li   $v0, 16
+    move $a0, $s7
+    syscall
 
     # Flush trailing token (file may not end with a separator)
     beqz $s3, build_output

@@ -89,7 +89,7 @@ writeline 2, "ID,STATION,TEMPERATURE,PRECIPITATION,WIND,BATTERY"
 # Record buffers
 # --------------------------------------------------
 
-MAXRECORDS = 1000
+MAXRECORDS = 2000
 
 dim acceptedIDs$(MAXRECORDS)
 dim sortKeys$(MAXRECORDS)

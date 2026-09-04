@@ -17,7 +17,7 @@ PROGRAM POLYFLOW_METRICS
   ! Constants
   ! ====================================================================
   INTEGER, PARAMETER :: MAX_RECORDS = 10000
-  INTEGER, PARAMETER :: MAX_STATIONS = 100
+  INTEGER, PARAMETER :: MAX_STATIONS = 1000
   CHARACTER(LEN=*), PARAMETER :: INPUT_FILE = "data/datos_normalizados.csv"
   CHARACTER(LEN=*), PARAMETER :: OUTPUT_FILE = "data/metricas.csv"
 
